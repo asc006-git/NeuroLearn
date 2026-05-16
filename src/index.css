@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+@theme {
+  --color-base: #0D1117;
+  --color-card: #161B22;
+  --color-border-subtle: rgba(255, 255, 255, 0.08);
+  
+  --color-text-main: #E6EDF3;
+  --color-text-muted: #8B949E;
+  
+  --color-amber: #F59E0B;
+  --color-teal: #14B8A6;
+  --color-orange: #F97316;
+  
+  --font-sans: 'Geist', 'Inter', 'SF Pro Display', system-ui, sans-serif;
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+  
+  body {
+    background-color: var(--color-base);
+    color: var(--color-text-main);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    margin: 0;
+  }
+
+  /* Custom Scrollbar for a premium feel */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border-subtle);
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
+}
+
+@layer utilities {
+  .premium-card {
+    @apply bg-card border border-border-subtle rounded-2xl shadow-sm;
+  }
+  
+  .premium-card-interactive {
+    @apply bg-card border border-border-subtle rounded-2xl shadow-sm transition-all duration-300 hover:border-white/15 hover:shadow-md hover:-translate-y-0.5;
+  }
+
+  .text-gradient-amber {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-amber to-yellow-300;
+  }
+}
