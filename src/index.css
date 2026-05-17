@@ -1,18 +1,22 @@
 @import "tailwindcss";
 
 @theme {
-  --color-base: #0D1117;
-  --color-card: #161B22;
+  --color-base: #0F172A; /* Deep graphite */
+  --color-base-dark: #0B1120;
+  --color-card: #111827; /* Charcoal black */
+  --color-card-hover: #1F2937;
   --color-border-subtle: rgba(255, 255, 255, 0.08);
+  --color-border-focus: rgba(255, 255, 255, 0.2);
   
-  --color-text-main: #E6EDF3;
-  --color-text-muted: #8B949E;
+  --color-text-main: #F8FAFC; /* Off-white */
+  --color-text-muted: #94A3B8; /* Muted gray */
   
-  --color-amber: #F59E0B;
-  --color-teal: #14B8A6;
-  --color-orange: #F97316;
+  --color-accent-orange: #F97316; /* Burnt orange */
+  --color-accent-amber: #F59E0B; /* Soft amber */
+  --color-accent-teal: #14B8A6; /* Mint teal */
   
-  --font-sans: 'Geist', 'Inter', 'SF Pro Display', system-ui, sans-serif;
+  --font-sans: 'Inter', 'Geist', 'Satoshi', system-ui, sans-serif;
+  --font-display: 'Satoshi', 'Inter', system-ui, sans-serif;
 }
 
 @layer base {
@@ -29,6 +33,11 @@
     margin: 0;
   }
 
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+
   /* Custom Scrollbar for a premium feel */
   ::-webkit-scrollbar {
     width: 6px;
@@ -42,20 +51,36 @@
     border-radius: 10px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(255, 255, 255, 0.15);
+    background: var(--color-border-focus);
   }
 }
 
 @layer utilities {
+  .premium-glass {
+    @apply bg-card/80 backdrop-blur-xl border border-white/5;
+  }
+
   .premium-card {
-    @apply bg-card border border-border-subtle rounded-2xl shadow-sm;
+    @apply bg-card border border-white/5 rounded-2xl shadow-lg;
   }
   
   .premium-card-interactive {
-    @apply bg-card border border-border-subtle rounded-2xl shadow-sm transition-all duration-300 hover:border-white/15 hover:shadow-md hover:-translate-y-0.5;
+    @apply bg-card border border-white/5 rounded-2xl shadow-lg transition-all duration-300 hover:border-white/10 hover:shadow-xl hover:-translate-y-1 hover:bg-card-hover;
   }
 
-  .text-gradient-amber {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-amber to-yellow-300;
+  .text-gradient-orange {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-accent-orange to-accent-amber;
+  }
+
+  .text-gradient-teal {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-accent-teal to-cyan-400;
+  }
+  
+  .bg-gradient-orange {
+    @apply bg-gradient-to-r from-accent-orange to-accent-amber;
+  }
+
+  .glow-orange {
+    box-shadow: 0 0 20px rgba(249, 115, 22, 0.2);
   }
 }
