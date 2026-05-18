@@ -1,19 +1,27 @@
 @import "tailwindcss";
 
 @theme {
-  --color-base: #0F172A; /* Deep graphite */
-  --color-base-dark: #0B1120;
-  --color-card: #111827; /* Charcoal black */
-  --color-card-hover: #1F2937;
-  --color-border-subtle: rgba(255, 255, 255, 0.08);
-  --color-border-focus: rgba(255, 255, 255, 0.2);
+  --color-base: #060816; /* Deepest dark for background */
+  --color-base-dark: #000000;
+  --color-card: rgba(11, 17, 32, 0.7); /* Deep blue-ish charcoal for cards */
+  --color-card-solid: #0B1120;
+  --color-card-hover: rgba(17, 24, 39, 0.9);
+  --color-surface-secondary: rgba(255, 255, 255, 0.04);
+  --color-surface-tertiary: rgba(255, 255, 255, 0.06);
   
-  --color-text-main: #F8FAFC; /* Off-white */
-  --color-text-muted: #94A3B8; /* Muted gray */
+  --color-border-subtle: rgba(255, 255, 255, 0.06);
+  --color-border-focus: rgba(255, 255, 255, 0.15);
+  --color-border-glow: rgba(255, 255, 255, 0.25);
   
-  --color-accent-orange: #F97316; /* Burnt orange */
-  --color-accent-amber: #F59E0B; /* Soft amber */
-  --color-accent-teal: #14B8A6; /* Mint teal */
+  --color-text-main: #F8FAFC; /* Crisp off-white */
+  --color-text-muted: #94A3B8; /* Slate gray */
+  --color-text-subtle: #64748B;
+  
+  --color-accent-orange: #F97316; /* Burnt Orange */
+  --color-accent-amber: #F59E0B; /* Amber Glow */
+  --color-accent-teal: #14B8A6; /* Mint Teal */
+  --color-accent-cyan: #22D3EE; /* Electric Cyan */
+  --color-accent-purple: #8B5CF6; /* For subtle AI accents if needed */
   
   --font-sans: 'Inter', 'Geist', 'Satoshi', system-ui, sans-serif;
   --font-display: 'Satoshi', 'Inter', system-ui, sans-serif;
@@ -29,58 +37,110 @@
     color: var(--color-text-main);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
     margin: 0;
+    /* Subtle noise texture or radial gradient background can be applied here */
+    background-image: radial-gradient(circle at 50% 0%, rgba(20, 184, 166, 0.05) 0%, transparent 50%),
+                      radial-gradient(circle at 100% 100%, rgba(249, 115, 22, 0.03) 0%, transparent 50%);
+    background-attachment: fixed;
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
-    letter-spacing: -0.02em;
+    letter-spacing: -0.03em;
+    font-weight: 600;
   }
 
-  /* Custom Scrollbar for a premium feel */
+  /* Custom Scrollbar for a premium feel (macOS style) */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: var(--color-border-subtle);
-    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 9999px;
+    border: 2px solid var(--color-base); /* padding effect */
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: var(--color-border-focus);
+    background: rgba(255, 255, 255, 0.2);
   }
 }
 
 @layer utilities {
+  /* Premium Glassmorphism */
   .premium-glass {
-    @apply bg-card/80 backdrop-blur-xl border border-white/5;
+    @apply bg-surface-secondary backdrop-blur-2xl border border-white/5;
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05),
+                0 8px 32px rgba(0, 0, 0, 0.4);
   }
 
+  .premium-glass-panel {
+    @apply bg-[#0B1120]/80 backdrop-blur-3xl border border-white/5 shadow-2xl;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05),
+                inset 0 0 20px rgba(255, 255, 255, 0.02),
+                0 20px 40px -10px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Premium Cards */
   .premium-card {
-    @apply bg-card border border-white/5 rounded-2xl shadow-lg;
+    @apply bg-card border border-white/5 rounded-2xl;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02),
+                0 4px 6px -1px rgba(0, 0, 0, 0.2);
   }
   
   .premium-card-interactive {
-    @apply bg-card border border-white/5 rounded-2xl shadow-lg transition-all duration-300 hover:border-white/10 hover:shadow-xl hover:-translate-y-1 hover:bg-card-hover;
+    @apply bg-card border border-white/5 rounded-2xl transition-all duration-400 ease-out;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02),
+                0 4px 6px -1px rgba(0, 0, 0, 0.2);
+  }
+  
+  .premium-card-interactive:hover {
+    @apply border-white/10 bg-card-hover -translate-y-1;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05),
+                0 12px 24px -8px rgba(0, 0, 0, 0.4);
   }
 
+  /* Text Gradients */
   .text-gradient-orange {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-accent-orange to-accent-amber;
+    @apply bg-clip-text text-transparent bg-gradient-to-br from-accent-orange to-accent-amber;
   }
 
   .text-gradient-teal {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-accent-teal to-cyan-400;
+    @apply bg-clip-text text-transparent bg-gradient-to-br from-accent-teal to-accent-cyan;
   }
   
-  .bg-gradient-orange {
-    @apply bg-gradient-to-r from-accent-orange to-accent-amber;
+  .text-gradient-primary {
+    @apply bg-clip-text text-transparent bg-gradient-to-br from-white to-white/60;
   }
 
+  /* Background Gradients */
+  .bg-gradient-orange {
+    @apply bg-gradient-to-br from-accent-orange to-accent-amber;
+  }
+  
+  .bg-gradient-teal {
+    @apply bg-gradient-to-br from-accent-teal to-accent-cyan;
+  }
+
+  /* Glow Effects */
   .glow-orange {
-    box-shadow: 0 0 20px rgba(249, 115, 22, 0.2);
+    box-shadow: 0 0 30px -5px rgba(249, 115, 22, 0.3);
+  }
+  
+  .glow-teal {
+    box-shadow: 0 0 30px -5px rgba(20, 184, 166, 0.3);
+  }
+  
+  .glow-ambient {
+    box-shadow: 0 0 40px -10px rgba(255, 255, 255, 0.1);
+  }
+  
+  /* Mesh Gradients / Background Blobs */
+  .mesh-blob {
+    @apply absolute rounded-full mix-blend-screen filter blur-[100px] opacity-30 animate-pulse;
   }
 }

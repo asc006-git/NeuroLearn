@@ -14,7 +14,6 @@ import { Summaries } from "./pages/Summaries";
 import { QuizLab } from "./pages/QuizLab";
 import { SmartNotes } from "./pages/SmartNotes";
 import { Analytics } from "./pages/Analytics";
-import { AIAssistant } from "./pages/AIAssistant";
 import { Settings } from "./pages/Settings";
 
 // Page Transition Wrapper
@@ -55,7 +54,6 @@ const AnimatedRoutes = () => {
           <Route path="/quiz-lab" element={<PageWrapper><QuizLab /></PageWrapper>} />
           <Route path="/smart-notes" element={<PageWrapper><SmartNotes /></PageWrapper>} />
           <Route path="/analytics" element={<PageWrapper><Analytics /></PageWrapper>} />
-          <Route path="/ai-assistant" element={<PageWrapper><AIAssistant /></PageWrapper>} />
           <Route path="/settings" element={<PageWrapper><Settings /></PageWrapper>} />
         </Route>
       </Routes>
