@@ -16,14 +16,21 @@ import { SmartNotes } from "./pages/SmartNotes";
 import { Analytics } from "./pages/Analytics";
 import { Settings } from "./pages/Settings";
 
-// Page Transition Wrapper
+const springTransition = {
+  type: "spring",
+  stiffness: 120,
+  damping: 18,
+  mass: 0.8,
+};
+
+// Page Transition Wrapper with spring physics
 const PageWrapper = ({ children }) => {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
+      initial={{ opacity: 0, y: 12, filter: "blur(4px)" }}
+      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+      exit={{ opacity: 0, y: -8, filter: "blur(4px)" }}
+      transition={springTransition}
       className="h-full"
     >
       {children}
