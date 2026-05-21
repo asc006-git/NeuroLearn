@@ -1,0 +1,13 @@
+var R=require("../../chunks/ssr/[turbopack]_runtime.js")("server/app/auth/page.js")
+R.c("server/chunks/ssr/[root-of-the-server]__0_o-zzk._.js")
+R.c("server/chunks/ssr/0669_next_dist_esm_build_templates_app-page_0r~qvws.js")
+R.c("server/chunks/ssr/[root-of-the-server]__0u2ey7h._.js")
+R.c("server/chunks/ssr/[root-of-the-server]__07at8if._.js")
+R.c("server/chunks/ssr/ai-learning-assistant_src_app_0b9u1b.._.js")
+R.c("server/chunks/ssr/0669_next_dist_client_components_0-y6xw-._.js")
+R.c("server/chunks/ssr/0669_next_dist_client_components_builtin_forbidden_060.4js.js")
+R.c("server/chunks/ssr/0669_next_dist_client_components_builtin_unauthorized_01ls.58.js")
+R.c("server/chunks/ssr/0669_next_dist_client_components_builtin_global-error_132l--i.js")
+R.c("server/chunks/ssr/ai-learning-assistant__next-internal_server_app_auth_page_actions_0c_f_0-.js")
+R.m(97653)
+module.exports=R.m(97653).exports

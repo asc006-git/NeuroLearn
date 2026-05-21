@@ -1,3 +1,4 @@
+@import url('https://api.fontshare.com/v2/css?f[]=satoshi@300,400,500,600,700,900&display=swap');
 @import "tailwindcss";
 
 /* ═══════════════════════════════════════════════════════════════
@@ -42,7 +43,7 @@
   --color-danger: #EF4444;
 
   /* ── Typography ── */
-  --font-display: 'Clash Display', 'Inter', system-ui, sans-serif;
+  --font-display: 'Satoshi', 'Inter', system-ui, sans-serif;
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
@@ -68,23 +69,34 @@
     background-color: var(--color-void);
     color: var(--color-text-primary);
     font-family: var(--font-sans);
-    font-feature-settings: 'cv11', 'ss01', 'cv01';
+    font-weight: 400;
+    line-height: 1.7;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     overflow-x: hidden;
     margin: 0;
-    line-height: 1.6;
+  }
+
+  /* Soften white opacity for body text elements */
+  p, span:not(.font-bold), li {
+    opacity: 0.85;
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
-    letter-spacing: -0.04em;
     font-weight: 600;
+    letter-spacing: -0.03em;
     line-height: 1.1;
   }
 
-  h1 { font-weight: 700; }
+  /* Hero Headings Upgrade */
+  h1 {
+    font-weight: 700;
+    letter-spacing: -0.05em;
+    line-height: 0.92;
+  }
+
 
   /* ── Ultra-thin Neural Scrollbar ── */
   ::-webkit-scrollbar {

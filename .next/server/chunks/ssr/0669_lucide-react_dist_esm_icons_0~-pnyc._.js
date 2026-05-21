@@ -1,0 +1,3 @@
+module.exports=[54366,a=>{"use strict";let b=(0,a.i(78066).default)("zap",[["path",{d:"M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z",key:"1xq2db"}]]);a.s(["Zap",0,b],54366)},43468,a=>{"use strict";let b=(0,a.i(78066).default)("user",[["path",{d:"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2",key:"975kel"}],["circle",{cx:"12",cy:"7",r:"4",key:"17ys0d"}]]);a.s(["User",0,b],43468)}];
+
+//# sourceMappingURL=0669_lucide-react_dist_esm_icons_0~-pnyc._.js.map

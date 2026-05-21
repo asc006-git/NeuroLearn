@@ -1,0 +1,17 @@
+{
+  "/(dashboard)/analytics/page": "/analytics",
+  "/(dashboard)/dashboard/page": "/dashboard",
+  "/(dashboard)/documents/page": "/documents",
+  "/(dashboard)/quiz-lab/page": "/quiz-lab",
+  "/(dashboard)/settings/page": "/settings",
+  "/(dashboard)/smart-notes/page": "/smart-notes",
+  "/(dashboard)/summaries/page": "/summaries",
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/api/auth/[...nextauth]/route": "/api/auth/[...nextauth]",
+  "/api/auth/signup/route": "/api/auth/signup",
+  "/api/register/route": "/api/register",
+  "/api/upload/route": "/api/upload",
+  "/auth/page": "/auth",
+  "/page": "/"
+}

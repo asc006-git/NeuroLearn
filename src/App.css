@@ -1,7 +1,0 @@
-/* NeuroLearn AI — App-level overrides (minimal) */
-
-/* Ensure smooth page transitions */
-#root {
-  min-height: 100vh;
-  isolation: isolate;
-}
