@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, X, Send, BrainCircuit, Bot, Mic, Zap } from "lucide-react";
@@ -25,15 +27,23 @@ function TypingIndicator() {
   );
 }
 
+interface Message {
+  id: number;
+  type: "ai" | "user";
+  text: string;
+}
+
+type AIState = "idle" | "thinking" | "analyzing" | "synthesizing";
+
 export function FloatingAIAssistant() {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState([
+  const [messages, setMessages] = useState<Message[]>([
     { id: 1, type: "ai", text: "Hello. I am your Neural Assistant. How can I assist with your studies today?" },
   ]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [aiState, setAiState] = useState("idle"); // idle, thinking, analyzing, synthesizing
-  const messagesEndRef = useRef(null);
+  const [aiState, setAiState] = useState<AIState>("idle"); // idle, thinking, analyzing, synthesizing
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -46,7 +56,7 @@ export function FloatingAIAssistant() {
   const handleSend = () => {
     if (!input.trim()) return;
 
-    const userMsg = { id: Date.now(), type: "user", text: input };
+    const userMsg: Message = { id: Date.now(), type: "user", text: input };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setIsTyping(true);
@@ -77,7 +87,7 @@ export function FloatingAIAssistant() {
     { label: "Summarize notes", icon: "📝" },
   ];
 
-  const stateLabels = {
+  const stateLabels: Record<AIState, string | null> = {
     idle: null,
     thinking: "Thinking",
     analyzing: "Analyzing context",
@@ -235,11 +245,11 @@ export function FloatingAIAssistant() {
             </div>
 
             {/* Quick Actions */}
-            <div className="px-4 pt-3 flex gap-2 shrink-0">
+            <div className="px-4 pt-3 flex gap-2 shrink-0 overflow-x-auto no-scrollbar">
               {quickActions.map((action, i) => (
                 <button
                   key={i}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-text-muted hover:text-text-primary transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-text-muted hover:text-text-primary transition-colors whitespace-nowrap"
                   style={{
                     background: "rgba(11, 16, 32, 0.5)",
                     border: "1px solid rgba(255,255,255,0.06)",
