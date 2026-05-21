@@ -1,0 +1,143 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "library"
+}
+
+model User {
+  id             String            @id @default(uuid())
+  name           String?
+  email          String            @unique
+  emailVerified  DateTime?
+  hashedPassword String?
+  avatar         String?
+  authProvider   String            @default("credentials")
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  documents      Document[]
+  analytics      Analytics[]
+  preferences    UserPreferences?
+  sessions       LearningSession[]
+  accounts       Account[]
+  authSessions   Session[]
+}
+
+model Account {
+  id                 String  @id @default(uuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String? @db.Text
+  access_token       String? @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String? @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Document {
+  id               String            @id @default(uuid())
+  userId           String
+  title            String
+  fileUrl          String
+  extractedText    String            @db.Text
+  embeddings       String?           @db.Text // Serialized float array of semantic features
+  processingStatus String            @default("ready") // ready, processing, completed, error
+  uploadedAt       DateTime          @default(now())
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  summaries        Summary[]
+}
+
+model Summary {
+  id             String            @id @default(uuid())
+  documentId     String
+  title          String
+  executiveBrief String            @db.Text
+  concepts       String            @db.Text // Serialized JSON array of concept objects
+  generatedAt    DateTime          @default(now())
+  document       Document          @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  quizzes        Quiz[]
+}
+
+model Quiz {
+  id         String            @id @default(uuid())
+  summaryId  String
+  questions  String            @db.Text // Serialized JSON array of question cards
+  difficulty String            @default("balanced")
+  score      Int               @default(0)
+  createdAt  DateTime          @default(now())
+  summary    Summary           @relation(fields: [summaryId], references: [id], onDelete: Cascade)
+}
+
+model KnowledgeMap {
+  id          String   @id @default(uuid())
+  userId      String
+  topic       String
+  category    String
+  relevance   Int
+  color       String
+  points      String   @db.Text // Serialized string array of facts
+  connections String   @db.Text // Serialized int array e.g., "[2, 3]"
+  x           Float
+  y           Float
+}
+
+model Analytics {
+  id             String   @id @default(uuid())
+  userId         String
+  studyMinutes   Int      @default(0)
+  cognitiveScore Int      @default(0)
+  retentionRating Int      @default(0)
+  date           DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserPreferences {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  intensity    Int      @default(2) // 1 = Fast, 2 = Balanced, 3 = Deep
+  adaptive     Boolean  @default(true)
+  voice        Boolean  @default(false)
+  dark         Boolean  @default(true)
+  emailAlerts  Boolean  @default(true)
+  pushAlerts   Boolean  @default(true)
+  accentColor  String   @default("#00F5D4")
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model LearningSession {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  type      String
+  duration  String
+  timeAgo   String
+  color     String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
