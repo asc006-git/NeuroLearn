@@ -1,9 +1,11 @@
+"use client";
+
 import { useState, useRef } from "react";
-import { Link, useLocation } from "react-router-dom";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { motion, useMotionValue, useTransform, useSpring, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
-  FolderOpen,
   Files,
   FileText,
   Beaker,
@@ -14,12 +16,26 @@ import {
 
 const springConfig = { stiffness: 120, damping: 18, mass: 0.8 };
 
-function DockIcon({ item, isActive, mouseX, index }) {
-  const ref = useRef(null);
+interface NavItem {
+  name: string;
+  path: string;
+  icon: any;
+}
+
+function DockIcon({
+  item,
+  isActive,
+  mouseX,
+}: {
+  item: NavItem;
+  isActive: boolean;
+  mouseX: any;
+}) {
+  const ref = useRef<HTMLAnchorElement>(null);
   const [isHovered, setIsHovered] = useState(false);
 
   // Calculate distance from mouse to icon center for magnetic effect
-  const distance = useTransform(mouseX, (val) => {
+  const distance = useTransform(mouseX, (val: number) => {
     if (!ref.current) return 150;
     const rect = ref.current.getBoundingClientRect();
     const iconCenter = rect.left + rect.width / 2;
@@ -28,52 +44,62 @@ function DockIcon({ item, isActive, mouseX, index }) {
 
   // Magnetic scaling — closer = bigger
   const scale = useSpring(
-    useTransform(distance, [0, 80, 200], [1.35, 1.1, 1]),
+    useTransform(distance, [0, 80, 200], [1.15, 1.05, 1]),
     springConfig
   );
 
   // Magnetic Y lift
   const y = useSpring(
-    useTransform(distance, [0, 80, 200], [-10, -3, 0]),
+    useTransform(distance, [0, 80, 200], [-6, -2, 0]),
     springConfig
   );
 
   return (
-    <Link to={item.path} className="relative group" ref={ref}>
-      {/* Context label — animate upward on hover */}
+    <Link href={item.path} className="relative group" ref={ref}>
+      {/* Glow effect on hover */}
       <AnimatePresence>
-        {isHovered && (
+        {(isHovered || isActive) && (
           <motion.div
-            initial={{ opacity: 0, y: 8, scale: 0.8 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 8, scale: 0.8 }}
-            transition={springConfig}
-            className="absolute -top-14 left-1/2 -translate-x-1/2 pointer-events-none z-50"
-          >
-            <div className="neural-glass px-3.5 py-1.5 rounded-xl text-xs font-medium text-text-primary whitespace-nowrap shadow-2xl border border-white/10">
-              {item.name}
-            </div>
-          </motion.div>
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 0.15, scale: 1.1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            className="absolute inset-0 rounded-2xl blur-lg pointer-events-none"
+            style={{
+              background: "radial-gradient(circle, #00F5D4 0%, transparent 70%)",
+            }}
+          />
         )}
       </AnimatePresence>
 
-      {/* Icon Container */}
+      {/* Icon + Label Container */}
       <motion.div
         style={{ scale, y }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        whileTap={{ scale: 0.9 }}
-        className={`relative z-10 w-12 h-12 rounded-2xl flex items-center justify-center transition-colors duration-300 ${
+        whileTap={{ scale: 0.95 }}
+        className={`relative z-10 min-w-[76px] h-14 rounded-2xl flex flex-col items-center justify-center transition-all duration-300 ${
           isActive
             ? "text-neural-cyan"
             : "text-text-muted hover:text-text-primary"
         }`}
       >
         <item.icon
-          size={20}
+          size={18}
           strokeWidth={isActive ? 2.5 : 1.8}
-          className="relative z-10"
+          className="relative z-10 transition-transform duration-300"
         />
+
+        {/* Text Label Below Icon */}
+        <span
+          className={`text-[9px] font-medium tracking-wide mt-1.5 transition-colors duration-300 ${
+            isActive ? "text-neural-cyan font-semibold" : "text-text-muted group-hover:text-text-primary"
+          }`}
+          style={{
+            textShadow: isActive ? "0 0 10px rgba(0, 245, 212, 0.3)" : "none",
+          }}
+        >
+          {item.name}
+        </span>
 
         {/* Active indicator — glowing background */}
         {isActive && (
@@ -81,10 +107,10 @@ function DockIcon({ item, isActive, mouseX, index }) {
             layoutId="activeDockBg"
             className="absolute inset-0 rounded-2xl"
             style={{
-              background: "rgba(0, 245, 212, 0.1)",
+              background: "rgba(0, 245, 212, 0.06)",
               border: "1px solid rgba(0, 245, 212, 0.2)",
               boxShadow:
-                "inset 0 0 12px rgba(0, 245, 212, 0.1), 0 0 20px rgba(0, 245, 212, 0.08)",
+                "inset 0 0 10px rgba(0, 245, 212, 0.08), 0 0 15px rgba(0, 245, 212, 0.05)",
             }}
             transition={springConfig}
           />
@@ -94,7 +120,7 @@ function DockIcon({ item, isActive, mouseX, index }) {
       {/* Floating AI pulse under active tab */}
       {isActive && (
         <motion.div
-          className="absolute -bottom-1.5 left-1/2 -translate-x-1/2"
+          className="absolute -bottom-1 left-1/2 -translate-x-1/2"
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
           transition={springConfig}
@@ -109,30 +135,30 @@ function DockIcon({ item, isActive, mouseX, index }) {
 }
 
 export function QuantumDock() {
-  const location = useLocation();
+  const pathname = usePathname();
   const mouseX = useMotionValue(-1000);
 
-  const navItems = [
+  const navItems: NavItem[] = [
     { name: "Dashboard", path: "/dashboard", icon: LayoutDashboard },
     { name: "Documents", path: "/documents", icon: Files },
     { name: "Summaries", path: "/summaries", icon: FileText },
-    { name: "Neural Lab", path: "/quiz-lab", icon: Beaker },
+    { name: "Quiz Lab", path: "/quiz-lab", icon: Beaker },
     { name: "Smart Notes", path: "/smart-notes", icon: Lightbulb },
     { name: "Analytics", path: "/analytics", icon: BarChart3 },
     { name: "Settings", path: "/settings", icon: Settings },
   ];
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none w-full max-w-3xl flex justify-center px-4">
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none w-full max-w-4xl flex justify-center px-4">
       <motion.div
         initial={{ y: 60, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: "spring", ...springConfig, delay: 0.3 }}
         onMouseMove={(e) => mouseX.set(e.clientX)}
         onMouseLeave={() => mouseX.set(-1000)}
-        className="pointer-events-auto relative rounded-full p-2.5 flex items-center gap-1 animate-breathe"
+        className="pointer-events-auto relative rounded-3xl p-2.5 flex items-center gap-1 animate-breathe"
         style={{
-          background: "rgba(5, 8, 22, 0.6)",
+          background: "rgba(5, 8, 22, 0.65)",
           backdropFilter: "blur(24px) saturate(1.8)",
           WebkitBackdropFilter: "blur(24px) saturate(1.8)",
           border: "1px solid rgba(255, 255, 255, 0.08)",
@@ -146,15 +172,14 @@ export function QuantumDock() {
         {/* Neon edge glow — bottom subtle */}
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1/3 h-px bg-gradient-to-r from-transparent via-electric-blue/15 to-transparent" />
 
-        {navItems.map((item, i) => {
-          const isActive = location.pathname === item.path;
+        {navItems.map((item) => {
+          const isActive = pathname === item.path;
           return (
             <DockIcon
               key={item.name}
               item={item}
               isActive={isActive}
               mouseX={mouseX}
-              index={i}
             />
           );
         })}
