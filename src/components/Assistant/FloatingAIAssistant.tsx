@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, X, Send, BrainCircuit, Bot, Mic, Zap } from "lucide-react";
 
 const springConfig = { stiffness: 120, damping: 18, mass: 0.8 };
 
 // Typing dots animation
-function TypingIndicator() {
+const TypingIndicator = React.memo(function TypingIndicator() {
   return (
     <div className="flex items-center gap-1 px-4 py-3">
       {[0, 1, 2].map((i) => (
@@ -25,7 +25,7 @@ function TypingIndicator() {
       ))}
     </div>
   );
-}
+});
 
 interface Message {
   id: number;
@@ -45,15 +45,15 @@ export function FloatingAIAssistant() {
   const [aiState, setAiState] = useState<AIState>("idle"); // idle, thinking, analyzing, synthesizing
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isOpen, isTyping]);
+  }, [messages, isOpen, isTyping, scrollToBottom]);
 
-  const handleSend = () => {
+  const handleSend = useCallback(() => {
     if (!input.trim()) return;
 
     const userMsg: Message = { id: Date.now(), type: "user", text: input };
@@ -79,7 +79,7 @@ export function FloatingAIAssistant() {
         },
       ]);
     }, 2000);
-  };
+  }, [input]);
 
   const quickActions = [
     { label: "Review weak topics", icon: "📊" },
