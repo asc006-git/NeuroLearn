@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { motion } from "framer-motion";
 
 // Particle component for neural mesh
-function Particle({ delay, x, y, size, duration, color }: { delay: number; x: number; y: number; size: number; duration: number; color: string }) {
+const Particle = React.memo(function Particle({ delay, x, y, size, duration, color }: { delay: number; x: number; y: number; size: number; duration: number; color: string }) {
   return (
     <motion.div
       className="absolute rounded-full"
@@ -15,6 +15,7 @@ function Particle({ delay, x, y, size, duration, color }: { delay: number; x: nu
         top: `${y}%`,
         background: color,
         filter: `blur(${size > 3 ? 1 : 0}px)`,
+        willChange: "transform, opacity",
       }}
       animate={{
         y: [0, -30, 10, -20, 0],
@@ -30,10 +31,10 @@ function Particle({ delay, x, y, size, duration, color }: { delay: number; x: nu
       }}
     />
   );
-}
+});
 
 // Floating connection line between two points
-function ConnectionLine({ x1, y1, x2, y2, delay }: { x1: number; y1: number; x2: number; y2: number; delay: number }) {
+const ConnectionLine = React.memo(function ConnectionLine({ x1, y1, x2, y2, delay }: { x1: number; y1: number; x2: number; y2: number; delay: number }) {
   return (
     <motion.line
       x1={`${x1}%`}
@@ -50,33 +51,41 @@ function ConnectionLine({ x1, y1, x2, y2, delay }: { x1: number; y1: number; x2:
         repeat: Infinity,
         ease: "easeInOut",
       }}
+      style={{ willChange: "transform, opacity" }}
     />
   );
-}
+});
 
 export function NeuralBackground() {
   const [mounted, setMounted] = useState(false);
-  const [elements, setElements] = useState<{ particles: any[]; connections: any[] }>({ particles: [], connections: [] });
 
   useEffect(() => {
-    // Generate particles
-    const particles = Array.from({ length: 35 }, (_, i) => ({
+    setMounted(true);
+  }, []);
+
+  const elements = useMemo(() => {
+    if (!mounted) {
+      return { particles: [], connections: [] };
+    }
+
+    // Generate 20 optimized particles
+    const particles = Array.from({ length: 20 }, (_, i) => ({
       id: i,
       x: Math.random() * 100,
       y: Math.random() * 100,
-      size: Math.random() * 3 + 1,
+      size: Math.random() * 2.5 + 1,
       delay: Math.random() * 5,
       duration: 8 + Math.random() * 12,
       color: i % 3 === 0
-        ? "rgba(0, 245, 212, 0.6)"
+        ? "rgba(0, 245, 212, 0.5)"
         : i % 3 === 1
-          ? "rgba(56, 189, 248, 0.5)"
-          : "rgba(255, 138, 0, 0.4)",
+          ? "rgba(56, 189, 248, 0.4)"
+          : "rgba(255, 138, 0, 0.35)",
     }));
 
-    // Generate connection lines between nearby particles
+    // Generate 8 optimized connection lines between nearby particles
     const connections: { id: string; x1: number; y1: number; x2: number; y2: number; delay: number }[] = [];
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 8; i++) {
       const p1 = particles[Math.floor(Math.random() * particles.length)];
       const p2 = particles[Math.floor(Math.random() * particles.length)];
       if (p1.id !== p2.id) {
@@ -90,10 +99,9 @@ export function NeuralBackground() {
         });
       }
     }
-    
-    setElements({ particles, connections });
-    setMounted(true);
-  }, []);
+
+    return { particles, connections };
+  }, [mounted]);
 
   return (
     <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden">
@@ -121,6 +129,7 @@ export function NeuralBackground() {
               background:
                 "radial-gradient(circle, rgba(0, 245, 212, 0.07) 0%, transparent 70%)",
               filter: "blur(80px)",
+              willChange: "transform",
             }}
             animate={{
               x: [0, 40, -20, 0],
@@ -143,6 +152,7 @@ export function NeuralBackground() {
               background:
                 "radial-gradient(circle, rgba(255, 138, 0, 0.05) 0%, transparent 70%)",
               filter: "blur(100px)",
+              willChange: "transform, opacity",
             }}
             animate={{
               x: [0, -30, 20, 0],
@@ -166,6 +176,7 @@ export function NeuralBackground() {
               background:
                 "radial-gradient(circle, rgba(56, 189, 248, 0.04) 0%, transparent 70%)",
               filter: "blur(120px)",
+              willChange: "transform, opacity",
             }}
             animate={{
               scale: [1, 1.2, 0.9, 1],
@@ -211,3 +222,4 @@ export function NeuralBackground() {
     </div>
   );
 }
+

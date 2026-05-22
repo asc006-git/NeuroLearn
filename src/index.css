@@ -368,34 +368,42 @@
 /* ── Animation Utility Classes ── */
 .animate-breathe {
   animation: neuralBreathe 4s ease-in-out infinite;
+  will-change: transform;
 }
 
 .animate-float {
   animation: neuralFloat 6s ease-in-out infinite;
+  will-change: transform;
 }
 
 .animate-float-slow {
   animation: neuralFloatSlow 8s ease-in-out infinite;
+  will-change: transform;
 }
 
 .animate-neural-pulse {
   animation: neuralPulse 3s ease-in-out infinite;
+  will-change: opacity, transform;
 }
 
 .animate-neural-glow {
   animation: neuralGlow 4s ease-in-out infinite;
+  will-change: opacity;
 }
 
 .animate-orbital {
   animation: orbitalSpin 20s linear infinite;
+  will-change: transform;
 }
 
 .animate-orbital-reverse {
   animation: orbitalSpinReverse 25s linear infinite;
+  will-change: transform;
 }
 
 .animate-shimmer {
   animation: shimmerSlide 2s ease-in-out infinite;
+  will-change: transform;
 }
 
 .animate-dash-flow {
@@ -404,4 +412,5 @@
 
 .animate-ring-pulse {
   animation: ringPulse 2s ease-out infinite;
+  will-change: transform, opacity;
 }

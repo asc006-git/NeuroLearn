@@ -63,7 +63,7 @@ export function TopNavbar() {
       <div className="flex items-center gap-5">
         <div className="flex items-center gap-3">
           {/* Neural Logo */}
-          <div className="relative animate-pulse">
+          <div className="relative">
             <div className="absolute inset-0 bg-neural-cyan/20 rounded-xl blur-md" />
             <div
               className="relative w-9 h-9 rounded-xl flex items-center justify-center"
