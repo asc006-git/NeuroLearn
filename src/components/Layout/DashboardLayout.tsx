@@ -1,8 +1,24 @@
+"use client";
+
 import { ReactNode } from "react";
+import dynamic from "next/dynamic";
 import { TopNavbar } from "../Navigation/TopNavbar";
-import { QuantumDock } from "../Navigation/QuantumDock";
-import { FloatingAIAssistant } from "../Assistant/FloatingAIAssistant";
-import { NeuralBackground } from "../Background/NeuralBackground";
+
+// Dynamically import heavy UI components with SSR disabled for optimal loading speeds
+const NeuralBackground = dynamic(
+  () => import("../Background/NeuralBackground").then((mod) => mod.NeuralBackground),
+  { ssr: false }
+);
+
+const QuantumDock = dynamic(
+  () => import("../Navigation/QuantumDock").then((mod) => mod.QuantumDock),
+  { ssr: false }
+);
+
+const FloatingAIAssistant = dynamic(
+  () => import("../Assistant/FloatingAIAssistant").then((mod) => mod.FloatingAIAssistant),
+  { ssr: false }
+);
 
 interface DashboardLayoutProps {
   children: ReactNode;
