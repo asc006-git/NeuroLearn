@@ -1,18 +1,30 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { BrainCircuit } from "lucide-react";
 
-const springConfig = { stiffness: 120, damping: 18, mass: 0.8 };
+interface SplashParticle {
+  yStart: number;
+  xStart: number;
+  yEnd: number;
+  xEnd: number;
+  duration: number;
+  delay: number;
+  width: number;
+  height: number;
+  background: string;
+}
 
 export default function Splash() {
   const router = useRouter();
   const [showTagline, setShowTagline] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const title = "NeuroLearn AI";
 
   useEffect(() => {
+    setMounted(true);
     const taglineTimer = setTimeout(() => setShowTagline(true), 1200);
     const navTimer = setTimeout(() => router.push("/auth"), 3200);
     return () => {
@@ -20,6 +32,27 @@ export default function Splash() {
       clearTimeout(navTimer);
     };
   }, [router]);
+
+  // Only generate particles on the client after mount — never during SSR
+  const particles = useMemo<SplashParticle[]>(() => {
+    if (!mounted) return [];
+    return [...Array(10)].map((_, i) => ({
+      yStart: Math.random() * 100 - 50,
+      xStart: Math.random() * 300 - 150,
+      yEnd: -150 - Math.random() * 100,
+      xEnd: Math.random() * 200 - 100,
+      duration: 2 + Math.random() * 2,
+      delay: Math.random() * 1.5,
+      width: Math.random() * 3 + 1,
+      height: Math.random() * 3 + 1,
+      background:
+        i % 3 === 0
+          ? "rgba(0, 245, 212, 0.6)"
+          : i % 3 === 1
+          ? "rgba(56, 189, 248, 0.5)"
+          : "rgba(255, 138, 0, 0.5)",
+    }));
+  }, [mounted]);
 
   return (
     <div className="min-h-screen bg-[#000000] flex flex-col items-center justify-center relative overflow-hidden">
@@ -57,30 +90,30 @@ export default function Splash() {
         />
       </div>
 
-      {/* Neural particles */}
-      {[...Array(25)].map((_, i) => (
+      {/* Neural particles — only rendered client-side */}
+      {particles.map((particle, i) => (
         <motion.div
           key={i}
           initial={{
             opacity: 0,
-            y: Math.random() * 100 - 50,
-            x: Math.random() * 300 - 150,
+            y: particle.yStart,
+            x: particle.xStart,
           }}
           animate={{
             opacity: [0, 0.6, 0],
-            y: -150 - Math.random() * 100,
-            x: Math.random() * 200 - 100,
+            y: particle.yEnd,
+            x: particle.xEnd,
           }}
           transition={{
-            duration: 2 + Math.random() * 2,
-            delay: Math.random() * 1.5,
+            duration: particle.duration,
+            delay: particle.delay,
             ease: "easeOut",
           }}
           className="absolute top-1/2 left-1/2 rounded-full"
           style={{
-            width: Math.random() * 3 + 1,
-            height: Math.random() * 3 + 1,
-            background: i % 3 === 0 ? "rgba(0, 245, 212, 0.6)" : i % 3 === 1 ? "rgba(56, 189, 248, 0.5)" : "rgba(255, 138, 0, 0.5)",
+            width: particle.width,
+            height: particle.height,
+            background: particle.background,
             filter: "blur(0.5px)",
           }}
         />
@@ -105,7 +138,7 @@ export default function Splash() {
             animate={{ scale: [1, 1.6, 1], opacity: [0.3, 0, 0.3] }}
             transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
             className="absolute inset-0 rounded-full"
-            style={{ background: "rgba(0, 245, 212, 0.15)", filter: "blur(15px)" }}
+            style={{ background: "rgba(0, 245, 212, 0.15)", filter: "blur(15px)", willChange: "transform, opacity" }}
           />
 
           {/* Orbital ring 1 */}
@@ -113,6 +146,7 @@ export default function Splash() {
             animate={{ rotate: 360 }}
             transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
             className="absolute -inset-4 rounded-full border border-neural-cyan/20 border-dashed"
+            style={{ willChange: "transform" }}
           />
 
           {/* Orbital ring 2 */}
@@ -120,6 +154,7 @@ export default function Splash() {
             animate={{ rotate: -360 }}
             transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
             className="absolute -inset-8 rounded-full border border-white/5"
+            style={{ willChange: "transform" }}
           >
             <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-neural-cyan glow-cyan" />
           </motion.div>

@@ -1,12 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { BrainCircuit, Mail, Lock, User, ArrowRight, ShieldCheck, Sparkles, AlertCircle, CheckCircle } from "lucide-react";
 
 const springConfig = { stiffness: 120, damping: 18, mass: 0.8 };
+
+interface AuthParticle {
+  width: number;
+  height: number;
+  left: string;
+  top: string;
+  background: string;
+  duration: number;
+  delay: number;
+}
+
+interface AuthRightParticle {
+  right: string;
+  top: string;
+  duration: number;
+  delay: number;
+}
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
@@ -17,8 +34,38 @@ export default function Auth() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Precompute left-side atmospheric particles (reduced from 8 to 4 for performance)
+  const leftParticles = useMemo<AuthParticle[]>(() => {
+    if (!mounted) return [];
+    return [...Array(4)].map((_, i) => ({
+      width: Math.random() * 3 + 1,
+      height: Math.random() * 3 + 1,
+      left: `${10 + Math.random() * 80}%`,
+      top: `${10 + Math.random() * 80}%`,
+      background: i % 2 === 0 ? "rgba(0, 245, 212, 0.5)" : "rgba(56, 189, 248, 0.4)",
+      duration: 6 + Math.random() * 6,
+      delay: Math.random() * 4,
+    }));
+  }, [mounted]);
+
+  // Precompute right-side floating particles (reduced from 5 to 2 for performance)
+  const rightParticles = useMemo<AuthRightParticle[]>(() => {
+    if (!mounted) return [];
+    return [...Array(2)].map(() => ({
+      right: `${5 + Math.random() * 35}%`,
+      top: `${10 + Math.random() * 80}%`,
+      duration: 4 + Math.random() * 4,
+      delay: Math.random() * 3,
+    }));
+  }, [mounted]);
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
@@ -78,9 +125,9 @@ export default function Auth() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isLogin, name, email, password, router]);
 
-  const handleGoogleLogin = async () => {
+  const handleGoogleLogin = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -89,7 +136,7 @@ export default function Auth() {
       setError("OAuth connection failed.");
       setLoading(false);
     }
-  };
+  }, []);
 
   return (
     <div className="min-h-screen bg-void flex relative overflow-hidden">
@@ -98,53 +145,60 @@ export default function Auth() {
         {/* Volumetric glows */}
         <div className="absolute inset-0 z-0 overflow-hidden">
           <motion.div
-            animate={{ rotate: [0, 90, 0], scale: [1, 1.3, 1] }}
-            transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
-            className="absolute -top-32 -left-32 w-[600px] h-[600px] rounded-full opacity-30"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.25 }}
+            transition={{ duration: 2 }}
+            className="absolute -top-32 -left-32 w-[600px] h-[600px] rounded-full"
             style={{
               background: "radial-gradient(circle, rgba(0, 245, 212, 0.2) 0%, transparent 70%)",
               filter: "blur(80px)",
+              willChange: "opacity",
             }}
           />
           <motion.div
-            animate={{ rotate: [0, -90, 0], scale: [1, 1.5, 1] }}
-            transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
-            className="absolute -bottom-20 -right-20 w-[500px] h-[500px] rounded-full opacity-30"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.25 }}
+            transition={{ duration: 2, delay: 0.2 }}
+            className="absolute -bottom-20 -right-20 w-[500px] h-[500px] rounded-full"
             style={{
               background: "radial-gradient(circle, rgba(255, 138, 0, 0.15) 0%, transparent 70%)",
               filter: "blur(100px)",
+              willChange: "opacity",
             }}
           />
           <motion.div
-            animate={{ y: [0, -60, 0], opacity: [0.2, 0.5, 0.2] }}
-            transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.3 }}
+            transition={{ duration: 2, delay: 0.4 }}
             className="absolute top-1/2 left-1/4 w-[400px] h-[400px] rounded-full"
             style={{
               background: "radial-gradient(circle, rgba(56, 189, 248, 0.1) 0%, transparent 70%)",
               filter: "blur(80px)",
+              willChange: "opacity",
             }}
           />
         </div>
 
         {/* Floating particles */}
-        {[...Array(15)].map((_, i) => (
+        {leftParticles.map((particle, i) => (
           <motion.div
             key={i}
             className="absolute rounded-full"
             style={{
-              width: Math.random() * 3 + 1,
-              height: Math.random() * 3 + 1,
-              left: `${10 + Math.random() * 80}%`,
-              top: `${10 + Math.random() * 80}%`,
-              background: i % 2 === 0 ? "rgba(0, 245, 212, 0.5)" : "rgba(56, 189, 248, 0.4)",
+              width: particle.width,
+              height: particle.height,
+              left: particle.left,
+              top: particle.top,
+              background: particle.background,
+              willChange: "transform, opacity",
             }}
             animate={{
               y: [0, -30, 10, -20, 0],
               opacity: [0, 0.8, 0.3, 0.6, 0],
             }}
             transition={{
-              duration: 6 + Math.random() * 6,
-              delay: Math.random() * 4,
+              duration: particle.duration,
+              delay: particle.delay,
               repeat: Infinity,
               ease: "easeInOut",
             }}
@@ -156,11 +210,13 @@ export default function Auth() {
           animate={{ rotate: 360 }}
           transition={{ duration: 60, repeat: Infinity, ease: "linear" }}
           className="absolute top-[20%] right-[15%] w-16 h-16 border border-neural-cyan/10 rounded-lg"
+          style={{ willChange: "transform" }}
         />
         <motion.div
           animate={{ rotate: -360 }}
           transition={{ duration: 45, repeat: Infinity, ease: "linear" }}
           className="absolute bottom-[25%] left-[20%] w-12 h-12 border border-quantum-orange/10 rounded-full"
+          style={{ willChange: "transform" }}
         />
 
         <div className="relative z-10 max-w-xl">
@@ -219,24 +275,25 @@ export default function Auth() {
         }}
       >
         {/* Floating particles behind auth card */}
-        {[...Array(8)].map((_, i) => (
+        {rightParticles.map((particle, i) => (
           <motion.div
             key={i}
             className="absolute rounded-full"
             style={{
               width: 2,
               height: 2,
-              right: `${5 + Math.random() * 35}%`,
-              top: `${10 + Math.random() * 80}%`,
+              right: particle.right,
+              top: particle.top,
               background: "rgba(0, 245, 212, 0.3)",
+              willChange: "transform, opacity",
             }}
             animate={{
               y: [0, -40, 0],
               opacity: [0, 0.5, 0],
             }}
             transition={{
-              duration: 4 + Math.random() * 4,
-              delay: Math.random() * 3,
+              duration: particle.duration,
+              delay: particle.delay,
               repeat: Infinity,
             }}
           />

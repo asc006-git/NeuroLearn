@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2,
@@ -106,6 +106,10 @@ export default function QuizLab() {
   const [timeLeft, setTimeLeft] = useState(30);
   const [showHint, setShowHint] = useState(false);
   const [showCorrectBurst, setShowCorrectBurst] = useState(false);
+  // Precompute correct answer burst particle distances for performance and safety
+  const burstDistances = useMemo(() => {
+    return [...Array(16)].map(() => 80 + Math.random() * 120);
+  }, []);
 
   const question = sampleQuestions[currentQIndex];
   const isCorrect = isSubmitted && selectedAnswer === question.correctAnswer;
@@ -177,7 +181,7 @@ export default function QuizLab() {
           <div className="fixed inset-0 pointer-events-none z-30 flex items-center justify-center">
             {[...Array(16)].map((_, i) => {
               const angle = (i / 16) * Math.PI * 2;
-              const distance = 80 + Math.random() * 120;
+              const distance = burstDistances[i];
               return (
                 <motion.div
                   key={i}
