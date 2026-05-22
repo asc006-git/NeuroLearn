@@ -1,1 +1,0 @@
-globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST["/api/auth/[...nextauth]/route"]={"moduleLoading":{"prefix":"/_next/"},"ssrModuleMapping":{},"edgeSSRModuleMapping":{},"clientModules":{},"entryCSSFiles":{"C:\\Users\\HP\\ai-learning-assistant\\src\\app\\api\\auth\\[...nextauth]\\route":[]},"rscModuleMapping":{},"edgeRscModuleMapping":{}};
