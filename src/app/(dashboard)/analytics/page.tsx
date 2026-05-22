@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { TrendingUp, Clock, BrainCircuit, Activity, Target } from "lucide-react";
@@ -23,10 +24,15 @@ const containerVariants = {
 
 const itemVariants = {
   hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0, transition: { type: "spring", ...springConfig } },
+  show: { opacity: 1, y: 0, transition: { type: "spring" as const, ...springConfig } },
 };
 
 export default function Analytics() {
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const stats = [
     { label: "Deep Work Hours", value: "32.4h", icon: Clock, color: "#38BDF8" },
     { label: "Concepts Mastered", value: "148", icon: Target, color: "#FF8A00" },
@@ -122,56 +128,63 @@ export default function Analytics() {
             Neural Activity & Focus Duration
           </h3>
           <div className="flex-1 min-h-[350px] relative z-10">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={activityData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="colorNeural" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#38BDF8" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="#38BDF8" stopOpacity={0} />
-                  </linearGradient>
-                  <filter id="glowCyan">
-                    <feGaussianBlur stdDeviation="6" result="coloredBlur" />
-                    <feMerge>
-                      <feMergeNode in="coloredBlur" />
-                      <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                  </filter>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
-                <XAxis dataKey="name" stroke="#475569" fontSize={12} tickLine={false} axisLine={false} dy={10} />
-                <YAxis stroke="#475569" fontSize={12} tickLine={false} axisLine={false} dx={-10} />
-                <Tooltip
-                  contentStyle={{
-                    background: "rgba(11, 16, 32, 0.95)",
-                    border: "1px solid rgba(56, 189, 248, 0.2)",
-                    borderRadius: "16px",
-                    boxShadow: "0 20px 40px rgba(0,0,0,0.5), 0 0 20px rgba(56, 189, 248, 0.1)",
-                    backdropFilter: "blur(20px)",
-                    padding: "12px 16px",
-                  }}
-                  itemStyle={{ color: "#F0F6FC", fontWeight: 600, fontSize: 14 }}
-                  labelStyle={{ color: "#64748B", fontSize: 12 }}
-                  cursor={{ stroke: "rgba(56, 189, 248, 0.2)", strokeWidth: 2, strokeDasharray: "5 5" }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="neuralActivity"
-                  name="Neural Output"
-                  stroke="#38BDF8"
-                  strokeWidth={3}
-                  fillOpacity={1}
-                  fill="url(#colorNeural)"
-                  activeDot={{
-                    r: 6,
-                    fill: "#0B1020",
-                    stroke: "#38BDF8",
-                    strokeWidth: 3,
-                    style: { filter: "drop-shadow(0 0 8px rgba(56, 189, 248, 0.6))" },
-                  }}
-                  filter="url(#glowCyan)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {!isMounted ? (
+              <div className="w-full h-full min-h-[350px] flex flex-col items-center justify-center bg-white/[0.02] border border-white/5 rounded-2xl animate-pulse">
+                <BrainCircuit className="w-8 h-8 text-electric-blue/45 mb-2 animate-neural-pulse" />
+                <span className="text-xs font-semibold text-text-muted uppercase tracking-widest">Syncing cognitive telemetry...</span>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={activityData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorNeural" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#38BDF8" stopOpacity={0.35} />
+                      <stop offset="95%" stopColor="#38BDF8" stopOpacity={0} />
+                    </linearGradient>
+                    <filter id="glowCyan">
+                      <feGaussianBlur stdDeviation="6" result="coloredBlur" />
+                      <feMerge>
+                        <feMergeNode in="coloredBlur" />
+                        <feMergeNode in="SourceGraphic" />
+                      </feMerge>
+                    </filter>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
+                  <XAxis dataKey="name" stroke="#475569" fontSize={12} tickLine={false} axisLine={false} dy={10} />
+                  <YAxis stroke="#475569" fontSize={12} tickLine={false} axisLine={false} dx={-10} />
+                  <Tooltip
+                    contentStyle={{
+                      background: "rgba(11, 16, 32, 0.95)",
+                      border: "1px solid rgba(56, 189, 248, 0.2)",
+                      borderRadius: "16px",
+                      boxShadow: "0 20px 40px rgba(0,0,0,0.5), 0 0 20px rgba(56, 189, 248, 0.1)",
+                      backdropFilter: "blur(20px)",
+                      padding: "12px 16px",
+                    }}
+                    itemStyle={{ color: "#F0F6FC", fontWeight: 600, fontSize: 14 }}
+                    labelStyle={{ color: "#64748B", fontSize: 12 }}
+                    cursor={{ stroke: "rgba(56, 189, 248, 0.2)", strokeWidth: 2, strokeDasharray: "5 5" }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="neuralActivity"
+                    name="Neural Output"
+                    stroke="#38BDF8"
+                    strokeWidth={3}
+                    fillOpacity={1}
+                    fill="url(#colorNeural)"
+                    activeDot={{
+                      r: 6,
+                      fill: "#0B1020",
+                      stroke: "#38BDF8",
+                      strokeWidth: 3,
+                      style: { filter: "drop-shadow(0 0 8px rgba(56, 189, 248, 0.6))" },
+                    }}
+                    filter="url(#glowCyan)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
 

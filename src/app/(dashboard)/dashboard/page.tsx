@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   UploadCloud,
@@ -52,7 +53,7 @@ const itemVariants = {
 };
 
 // Unique metric card effects
-function MetricCard({ stat, index }: { stat: any; index: number }) {
+const MetricCard = React.memo(function MetricCard({ stat, index }: { stat: any; index: number }) {
   return (
     <motion.div
       variants={itemVariants}
@@ -120,9 +121,14 @@ function MetricCard({ stat, index }: { stat: any; index: number }) {
       </div>
     </motion.div>
   );
-}
+});
 
 export default function Dashboard() {
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const stats = [
     {
       label: "Neural Streak",
@@ -359,77 +365,84 @@ export default function Dashboard() {
           </div>
 
           <div className="flex-1 min-h-[300px] relative z-10">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart
-                data={performanceData}
-                margin={{ top: 10, right: 0, left: -20, bottom: 0 }}
-              >
-                <defs>
-                  <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#00F5D4" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="#00F5D4" stopOpacity={0} />
-                  </linearGradient>
-                  <filter id="glowLine">
-                    <feGaussianBlur
-                      stdDeviation="6"
-                      result="coloredBlur"
-                    />
-                    <feMerge>
-                      <feMergeNode in="coloredBlur" />
-                      <feMergeNode in="SourceGraphic" />
-                    </feMerge>
-                  </filter>
-                </defs>
-                <XAxis
-                  dataKey="name"
-                  stroke="#475569"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  dy={10}
-                />
-                <YAxis
-                  stroke="#475569"
-                  fontSize={12}
-                  tickLine={false}
-                  axisLine={false}
-                  dx={-10}
-                />
-                <Tooltip
-                  contentStyle={{
-                    background: "rgba(11, 16, 32, 0.95)",
-                    border: "1px solid rgba(0, 245, 212, 0.2)",
-                    borderRadius: "16px",
-                    boxShadow: "0 20px 40px rgba(0,0,0,0.5), 0 0 20px rgba(0, 245, 212, 0.1)",
-                    backdropFilter: "blur(20px)",
-                    padding: "12px 16px",
-                  }}
-                  itemStyle={{ color: "#F0F6FC", fontWeight: 600, fontSize: 14 }}
-                  labelStyle={{ color: "#64748B", fontSize: 12 }}
-                  cursor={{
-                    stroke: "rgba(0, 245, 212, 0.2)",
-                    strokeWidth: 1,
-                    strokeDasharray: "5 5",
-                  }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="score"
-                  stroke="#00F5D4"
-                  strokeWidth={3}
-                  fillOpacity={1}
-                  fill="url(#colorScore)"
-                  activeDot={{
-                    r: 6,
-                    fill: "#0B1020",
-                    stroke: "#00F5D4",
-                    strokeWidth: 3,
-                    style: { filter: "drop-shadow(0 0 8px rgba(0, 245, 212, 0.6))" },
-                  }}
-                  filter="url(#glowLine)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {!isMounted ? (
+              <div className="w-full h-full min-h-[300px] flex flex-col items-center justify-center bg-white/[0.02] border border-white/5 rounded-2xl animate-pulse">
+                <BrainCircuit className="w-8 h-8 text-neural-cyan/40 mb-2 animate-neural-pulse" />
+                <span className="text-xs font-semibold text-text-muted uppercase tracking-widest">Syncing cognitive telemetry...</span>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart
+                  data={performanceData}
+                  margin={{ top: 10, right: 0, left: -20, bottom: 0 }}
+                >
+                  <defs>
+                    <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#00F5D4" stopOpacity={0.35} />
+                      <stop offset="95%" stopColor="#00F5D4" stopOpacity={0} />
+                    </linearGradient>
+                    <filter id="glowLine">
+                      <feGaussianBlur
+                        stdDeviation="6"
+                        result="coloredBlur"
+                      />
+                      <feMerge>
+                        <feMergeNode in="coloredBlur" />
+                        <feMergeNode in="SourceGraphic" />
+                      </feMerge>
+                    </filter>
+                  </defs>
+                  <XAxis
+                    dataKey="name"
+                    stroke="#475569"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    dy={10}
+                  />
+                  <YAxis
+                    stroke="#475569"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    dx={-10}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: "rgba(11, 16, 32, 0.95)",
+                      border: "1px solid rgba(0, 245, 212, 0.2)",
+                      borderRadius: "16px",
+                      boxShadow: "0 20px 40px rgba(0,0,0,0.5), 0 0 20px rgba(0, 245, 212, 0.1)",
+                      backdropFilter: "blur(20px)",
+                      padding: "12px 16px",
+                    }}
+                    itemStyle={{ color: "#F0F6FC", fontWeight: 600, fontSize: 14 }}
+                    labelStyle={{ color: "#64748B", fontSize: 12 }}
+                    cursor={{
+                      stroke: "rgba(0, 245, 212, 0.2)",
+                      strokeWidth: 1,
+                      strokeDasharray: "5 5",
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="score"
+                    stroke="#00F5D4"
+                    strokeWidth={3}
+                    fillOpacity={1}
+                    fill="url(#colorScore)"
+                    activeDot={{
+                      r: 6,
+                      fill: "#0B1020",
+                      stroke: "#00F5D4",
+                      strokeWidth: 3,
+                      style: { filter: "drop-shadow(0 0 8px rgba(0, 245, 212, 0.6))" },
+                    }}
+                    filter="url(#glowLine)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
 
