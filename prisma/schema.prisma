@@ -25,6 +25,8 @@ model User {
   sessions       LearningSession[]
   accounts       Account[]
   authSessions   Session[]
+  resetToken     String?           @unique
+  resetTokenExpires DateTime?
 }
 
 model Account {
@@ -110,13 +112,14 @@ model KnowledgeMap {
 }
 
 model Analytics {
-  id             String   @id @default(uuid())
-  userId         String
-  studyMinutes   Int      @default(0)
-  cognitiveScore Int      @default(0)
+  id              String   @id @default(uuid())
+  userId          String
+  studyMinutes    Int      @default(0)
+  cognitiveScore  Int      @default(0)
   retentionRating Int      @default(0)
-  date           DateTime @default(now())
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quizzesTaken    Int      @default(0)
+  date            DateTime @default(now())
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model UserPreferences {
@@ -136,9 +139,11 @@ model LearningSession {
   id        String   @id @default(uuid())
   userId    String
   title     String
-  type      String
-  duration  String
-  timeAgo   String
-  color     String
+  type      String   @default("document")
+  duration  String   @default("1 min")
+  timeAgo   String   @default("just now")
+  color     String   @default("#00F5D4")
+  score     Int      @default(0)
+  createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
