@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   UploadCloud,
   FileText,
@@ -13,6 +13,7 @@ import {
   Sparkles,
   Zap,
   Flame,
+  X,
 } from "lucide-react";
 import {
   AreaChart,
@@ -22,6 +23,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { UploadArea } from "../../../components/Workspace/UploadArea";
 
 const springConfig = { stiffness: 120, damping: 18, mass: 0.8 };
 
@@ -125,14 +127,41 @@ const MetricCard = React.memo(function MetricCard({ stat, index }: { stat: any; 
 
 export default function Dashboard() {
   const [isMounted, setIsMounted] = useState(false);
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+
   useEffect(() => {
     setIsMounted(true);
+    async function fetchDashboard() {
+      try {
+        const res = await fetch("/api/dashboard");
+        if (res.ok) {
+          const json = await res.json();
+          setData(json.data);
+        }
+      } catch (err) {
+        console.error("Dashboard fetch error:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchDashboard();
   }, []);
+
+  const metrics = data?.metrics || {
+    documentsCount: 0,
+    summariesCount: 0,
+    quizzesCount: 0,
+    studyTimeHours: 0,
+    accuracyRate: 0,
+    sessionsCount: 0,
+  };
 
   const stats = [
     {
       label: "Neural Streak",
-      value: "5 Days",
+      value: metrics.sessionsCount > 0 ? `${metrics.sessionsCount} Days` : "0 Days",
       icon: Flame,
       color: "#FF8A00",
       glowColor: "rgba(255, 138, 0, 0.5)",
@@ -141,7 +170,7 @@ export default function Dashboard() {
     },
     {
       label: "Deep Work",
-      value: "24.5h",
+      value: `${metrics.studyTimeHours}h`,
       icon: Clock,
       color: "#38BDF8",
       glowColor: "rgba(56, 189, 248, 0.5)",
@@ -150,7 +179,7 @@ export default function Dashboard() {
     },
     {
       label: "Retention",
-      value: "85%",
+      value: `${metrics.accuracyRate}%`,
       icon: Target,
       color: "#00F5D4",
       glowColor: "rgba(0, 245, 212, 0.5)",
@@ -159,7 +188,7 @@ export default function Dashboard() {
     },
     {
       label: "Sources Synthesized",
-      value: "12",
+      value: `${metrics.documentsCount}`,
       icon: FileText,
       color: "#8B5CF6",
       glowColor: "rgba(139, 92, 246, 0.5)",
@@ -217,24 +246,24 @@ export default function Dashboard() {
           {/* Hero Title */}
           <h1 className="text-4xl lg:text-6xl font-display font-bold text-text-primary leading-[1.05] tracking-tight">
             Welcome back,{" "}
-            <span className="text-gradient-orange">Alex</span>.
+            <span className="text-gradient-orange">{data?.user?.name || "Explorer"}</span>.
           </h1>
 
           {/* AI Insight */}
           <p className="text-text-secondary text-lg max-w-xl font-light leading-relaxed">
             You're on a{" "}
-            <span className="text-text-primary font-medium">5-day streak</span>!
-            Your neural AI has processed 3 new documents and generated a
-            customized memory quiz for you.
+            <span className="text-text-primary font-medium">{metrics.sessionsCount > 0 ? `${metrics.sessionsCount}-day` : "0-day"} streak</span>!
+            Your neural AI has processed {metrics.documentsCount} knowledge source(s) and generated {metrics.summariesCount} customized memory brief(s) and quiz(zes) for you.
           </p>
 
           {/* Action Buttons */}
           <div className="pt-2 flex flex-wrap gap-4">
             <motion.button
+              onClick={() => setShowUploadModal(true)}
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.96 }}
               transition={springConfig}
-              className="font-semibold px-7 py-3.5 rounded-2xl flex items-center gap-2.5 text-sm"
+              className="font-semibold px-7 py-3.5 rounded-2xl flex items-center gap-2.5 text-sm cursor-pointer"
               style={{
                 background: "linear-gradient(135deg, #00F5D4, #38BDF8)",
                 color: "#050816",
@@ -248,7 +277,7 @@ export default function Dashboard() {
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.96 }}
               transition={springConfig}
-              className="border border-white/10 text-text-primary font-semibold px-7 py-3.5 rounded-2xl hover:bg-white/5 transition-colors text-sm"
+              className="border border-white/10 text-text-primary font-semibold px-7 py-3.5 rounded-2xl hover:bg-white/5 transition-colors text-sm cursor-pointer"
               style={{ background: "rgba(11, 16, 32, 0.8)" }}
             >
               Review Synthesized Notes
@@ -459,58 +488,45 @@ export default function Dashboard() {
               </button>
             </div>
             <div className="space-y-2">
-              {[
-                {
-                  title: "Neuroscience 101 Summary",
-                  type: "AI Summary",
-                  time: "2h ago",
-                  icon: BrainCircuit,
-                  color: "#8B5CF6",
-                },
-                {
-                  title: "Cellular Biology Quiz",
-                  type: "Adaptive Quiz",
-                  time: "5h ago",
-                  icon: Target,
-                  color: "#FF8A00",
-                },
-                {
-                  title: "Physics Chapter 4",
-                  type: "Raw Source",
-                  time: "1d ago",
-                  icon: FileText,
-                  color: "#64748B",
-                },
-              ].map((item, i) => (
-                <motion.div
-                  key={i}
-                  whileHover={{ x: 4 }}
-                  transition={springConfig}
-                  className="flex items-center justify-between p-3.5 rounded-2xl hover:bg-white/5 transition-colors cursor-pointer group border border-transparent hover:border-white/5"
-                >
-                  <div className="flex items-center gap-4">
-                    <div
-                      className="p-2.5 rounded-xl border group-hover:scale-110 transition-transform"
-                      style={{
-                        background: "rgba(5, 8, 22, 0.8)",
-                        borderColor: "rgba(255,255,255,0.06)",
-                        color: item.color,
-                      }}
+              {(!data?.recentActivity || data.recentActivity.length === 0) ? (
+                <div className="text-center py-8 text-xs text-text-ghost">
+                  No learning sessions logged yet.<br/>Upload a source document above to begin mapping your workspace.
+                </div>
+              ) : (
+                data.recentActivity.map((item: any, i: number) => {
+                  const isQuiz = item.type === "quiz";
+                  return (
+                    <motion.div
+                      key={item.id || i}
+                      whileHover={{ x: 4 }}
+                      transition={springConfig}
+                      className="flex items-center justify-between p-3.5 rounded-2xl hover:bg-white/5 transition-colors cursor-pointer group border border-transparent hover:border-white/5"
                     >
-                      <item.icon className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-text-primary line-clamp-1">
-                        {item.title}
-                      </p>
-                      <p className="text-xs text-text-ghost mt-0.5">
-                        {item.type} • {item.time}
-                      </p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-text-muted opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
-                </motion.div>
-              ))}
+                      <div className="flex items-center gap-4">
+                        <div
+                          className="p-2.5 rounded-xl border group-hover:scale-110 transition-transform"
+                          style={{
+                            background: "rgba(5, 8, 22, 0.8)",
+                            borderColor: "rgba(255,255,255,0.06)",
+                            color: isQuiz ? "#FF8A00" : "#8B5CF6",
+                          }}
+                        >
+                          {isQuiz ? <Target className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-text-primary line-clamp-1">
+                            {item.topic}
+                          </p>
+                          <p className="text-[11px] text-text-ghost mt-0.5 line-clamp-1">
+                            {item.description}
+                          </p>
+                        </div>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-text-muted opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0 shrink-0" />
+                    </motion.div>
+                  );
+                })
+              )}
             </div>
           </div>
 
@@ -570,6 +586,50 @@ export default function Dashboard() {
           </div>
         </div>
       </motion.div>
+
+      {/* Futuristic Ingestion Portal Overlay */}
+      <AnimatePresence>
+        {showUploadModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-void/85 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              transition={springConfig}
+              className="w-full max-w-xl neural-glass-panel p-8 rounded-[32px] relative overflow-hidden"
+              style={{ border: "1px solid rgba(0, 245, 212, 0.2)" }}
+            >
+              {/* Top ambient highlight */}
+              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-neural-cyan/30 to-transparent" />
+
+              {/* Close Button */}
+              <button
+                onClick={() => setShowUploadModal(false)}
+                className="absolute top-6 right-6 p-2 rounded-xl text-text-muted hover:text-text-primary hover:bg-white/5 transition-all cursor-pointer border border-transparent hover:border-white/5"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="mb-6">
+                <h3 className="text-2xl font-display font-semibold text-text-primary tracking-tight mb-2">
+                  Knowledge Ingestion Pipeline
+                </h3>
+                <p className="text-sm text-text-muted">
+                  Feed high-fidelity documents into the NeuroLearn semantic database to train your personalized learning AI models.
+                </p>
+              </div>
+
+              {/* Render our reactive UploadArea */}
+              <UploadArea />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
