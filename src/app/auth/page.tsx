@@ -27,6 +27,7 @@ interface AuthRightParticle {
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -72,7 +73,23 @@ export default function Auth() {
     setSuccess(null);
 
     try {
-      if (isLogin) {
+      if (isForgotPassword) {
+        // Forgot Password
+        const response = await fetch("/api/auth/forgot-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          setError(data.error || "Reset transmission failed.");
+        } else {
+          setSuccess(data.message || "A secure reset link has been dispatched.");
+        }
+      } else if (isLogin) {
+        // Sign In
         // Sign In
         const result = await signIn("credentials", {
           email,
@@ -125,7 +142,7 @@ export default function Auth() {
     } finally {
       setLoading(false);
     }
-  }, [isLogin, name, email, password, router]);
+  }, [isForgotPassword, isLogin, name, email, password, router]);
 
   const handleGoogleLogin = useCallback(async () => {
     setLoading(true);
@@ -322,15 +339,17 @@ export default function Auth() {
 
           <div className="relative z-10 mb-8">
             <motion.h3
-              key={isLogin ? "login" : "signup"}
+              key={isForgotPassword ? "forgot" : isLogin ? "login" : "signup"}
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               className="text-3xl font-display font-bold text-text-primary mb-3 tracking-tight"
             >
-              {isLogin ? "Resume session" : "Initialize interface"}
+              {isForgotPassword ? "Retrieve credentials" : isLogin ? "Resume session" : "Initialize interface"}
             </motion.h3>
             <p className="text-text-secondary text-sm">
-              {isLogin
+              {isForgotPassword
+                ? "Enter your email link to receive a secure reset token."
+                : isLogin
                 ? "Enter your credentials to access your neural workspace."
                 : "Join the next generation of accelerated learning."}
             </p>
@@ -364,7 +383,7 @@ export default function Auth() {
 
           <form onSubmit={handleSubmit} className="space-y-4 relative z-10">
             <AnimatePresence mode="popLayout">
-              {!isLogin && (
+              {!isLogin && !isForgotPassword && (
                 <motion.div
                   initial={{ opacity: 0, height: 0, y: -10 }}
                   animate={{ opacity: 1, height: "auto", y: 0 }}
@@ -381,7 +400,7 @@ export default function Auth() {
                       onChange={(e) => setName(e.target.value)}
                       className="w-full bg-void/50 border border-white/8 rounded-2xl py-3 pl-11 pr-4 text-text-primary focus:outline-none focus:border-neural-cyan/40 focus:ring-1 focus:ring-neural-cyan/20 focus:bg-deep/80 transition-all placeholder:text-text-ghost text-sm"
                       placeholder="Alex Carter"
-                      required={!isLogin}
+                      required={!isLogin && !isForgotPassword}
                     />
                   </div>
                 </motion.div>
@@ -403,33 +422,43 @@ export default function Auth() {
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between pl-1">
-                <label className="text-xs font-semibold text-text-muted">Password</label>
-                {isLogin && (
-                  <a href="#" className="text-xs text-text-ghost hover:text-text-primary transition-colors">
-                    Forgot password?
-                  </a>
+            {!isForgotPassword && (
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between pl-1">
+                  <label className="text-xs font-semibold text-text-muted">Password</label>
+                  {isLogin && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsForgotPassword(true);
+                        setError(null);
+                        setSuccess(null);
+                      }}
+                      className="text-xs text-text-ghost hover:text-text-primary transition-colors bg-transparent border-none cursor-pointer"
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
+                <div className="relative group">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted group-focus-within:text-neural-cyan transition-colors" />
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-void/50 border border-white/8 rounded-2xl py-3 pl-11 pr-4 text-text-primary focus:outline-none focus:border-neural-cyan/40 focus:ring-1 focus:ring-neural-cyan/20 focus:bg-deep/80 transition-all placeholder:text-text-ghost text-sm"
+                    placeholder="••••••••"
+                    required={!isForgotPassword}
+                  />
+                </div>
+                {!isLogin && (
+                  <div className="flex items-center gap-1.5 pt-0.5 pl-1">
+                    <ShieldCheck className="w-3.5 h-3.5 text-neural-cyan" />
+                    <span className="text-[10px] text-text-ghost">Minimum 6 characters required.</span>
+                  </div>
                 )}
               </div>
-              <div className="relative group">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted group-focus-within:text-neural-cyan transition-colors" />
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-void/50 border border-white/8 rounded-2xl py-3 pl-11 pr-4 text-text-primary focus:outline-none focus:border-neural-cyan/40 focus:ring-1 focus:ring-neural-cyan/20 focus:bg-deep/80 transition-all placeholder:text-text-ghost text-sm"
-                  placeholder="••••••••"
-                  required
-                />
-              </div>
-              {!isLogin && (
-                <div className="flex items-center gap-1.5 pt-0.5 pl-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-neural-cyan" />
-                  <span className="text-[10px] text-text-ghost">Minimum 6 characters required.</span>
-                </div>
-              )}
-            </div>
+            )}
 
             <button
               type="submit"
@@ -445,64 +474,86 @@ export default function Auth() {
                 <div className="w-5 h-5 border-2 border-[#050816] border-t-transparent rounded-full animate-spin" />
               ) : (
                 <>
-                  {isLogin ? "Sign In" : "Create Account"}
+                  {isForgotPassword ? "Send Reset Link" : isLogin ? "Sign In" : "Create Account"}
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </>
               )}
             </button>
           </form>
 
-          {/* Divider */}
-          <div className="relative my-6 z-10 flex items-center justify-center">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-white/5" />
-            </div>
-            <span className="relative px-3 text-[10px] uppercase tracking-widest font-bold text-text-ghost bg-surface/80 rounded-full backdrop-blur-md">
-              or connect via
-            </span>
-          </div>
+          {!isForgotPassword && (
+            <>
+              {/* Divider */}
+              <div className="relative my-6 z-10 flex items-center justify-center">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-white/5" />
+                </div>
+                <span className="relative px-3 text-[10px] uppercase tracking-widest font-bold text-text-ghost bg-surface/80 rounded-full backdrop-blur-md">
+                  or connect via
+                </span>
+              </div>
 
-          {/* Google OAuth Login Button */}
-          <button
-            onClick={handleGoogleLogin}
-            disabled={loading}
-            className="w-full relative z-10 font-semibold py-3 px-4 rounded-2xl transition-all flex items-center justify-center gap-2.5 text-sm cursor-pointer border border-white/8 hover:border-white/15 bg-void/35 hover:bg-void/50 text-text-primary mb-6"
-          >
-            {/* Beautiful SVG Google Icon */}
-            <svg className="w-4.5 h-4.5" viewBox="0 0 24 24">
-              <path
-                fill="#EA4335"
-                d="M12 5.04c1.66 0 3.2.57 4.38 1.69l3.27-3.27C17.68 1.54 14.98 1 12 1 7.35 1 3.4 3.65 1.5 7.5l3.82 2.96C6.26 7.42 8.92 5.04 12 5.04z"
-              />
-              <path
-                fill="#4285F4"
-                d="M23.49 12.27c0-.81-.07-1.59-.2-2.36H12v4.51h6.46c-.28 1.48-1.12 2.74-2.38 3.58l3.71 2.88c2.16-1.99 3.42-4.92 3.42-8.61z"
-              />
-              <path
-                fill="#FBBC05"
-                d="M5.32 14.54c-.24-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29L1.5 7.02C.54 8.95 0 11.11 0 13.4s.54 4.45 1.5 6.38l3.82-2.96c-.24-.72-.38-1.49-.38-2.29z"
-              />
-              <path
-                fill="#34A853"
-                d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.71-2.88c-1.03.69-2.35 1.1-4.25 1.1-3.08 0-5.74-2.38-6.68-5.46L1.5 15.82C3.4 19.65 7.35 23 12 23z"
-              />
-            </svg>
-            Google OAuth
-          </button>
+              {/* Google OAuth Login Button */}
+              <button
+                onClick={handleGoogleLogin}
+                disabled={loading}
+                className="w-full relative z-10 font-semibold py-3 px-4 rounded-2xl transition-all flex items-center justify-center gap-2.5 text-sm cursor-pointer border border-white/8 hover:border-white/15 bg-void/35 hover:bg-void/50 text-text-primary mb-6"
+              >
+                {/* Beautiful SVG Google Icon */}
+                <svg className="w-4.5 h-4.5" viewBox="0 0 24 24">
+                  <path
+                    fill="#EA4335"
+                    d="M12 5.04c1.66 0 3.2.57 4.38 1.69l3.27-3.27C17.68 1.54 14.98 1 12 1 7.35 1 3.4 3.65 1.5 7.5l3.82 2.96C6.26 7.42 8.92 5.04 12 5.04z"
+                  />
+                  <path
+                    fill="#4285F4"
+                    d="M23.49 12.27c0-.81-.07-1.59-.2-2.36H12v4.51h6.46c-.28 1.48-1.12 2.74-2.38 3.58l3.71 2.88c2.16-1.99 3.42-4.92 3.42-8.61z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.32 14.54c-.24-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29L1.5 7.02C.54 8.95 0 11.11 0 13.4s.54 4.45 1.5 6.38l3.82-2.96c-.24-.72-.38-1.49-.38-2.29z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.71-2.88c-1.03.69-2.35 1.1-4.25 1.1-3.08 0-5.74-2.38-6.68-5.46L1.5 15.82C3.4 19.65 7.35 23 12 23z"
+                  />
+                </svg>
+                Google OAuth
+              </button>
+            </>
+          )}
 
           <div className="mt-4 text-center relative z-10">
             <p className="text-text-ghost text-sm">
-              {isLogin ? "New to NeuroLearn?" : "Already have an account?"}{" "}
-              <button
-                onClick={() => {
-                  setIsLogin(!isLogin);
-                  setError(null);
-                  setSuccess(null);
-                }}
-                className="text-neural-cyan font-medium hover:text-electric-blue transition-colors underline decoration-neural-cyan/30 underline-offset-4 hover:decoration-electric-blue"
-              >
-                {isLogin ? "Create an account" : "Sign in"}
-              </button>
+              {isForgotPassword ? (
+                <>
+                  Remember your security key?{" "}
+                  <button
+                    onClick={() => {
+                      setIsForgotPassword(false);
+                      setError(null);
+                      setSuccess(null);
+                    }}
+                    className="text-neural-cyan font-medium hover:text-electric-blue transition-colors bg-transparent border-none cursor-pointer underline decoration-neural-cyan/30 underline-offset-4 hover:decoration-electric-blue"
+                  >
+                    Sign in
+                  </button>
+                </>
+              ) : (
+                <>
+                  {isLogin ? "New to NeuroLearn?" : "Already have an account?"}{" "}
+                  <button
+                    onClick={() => {
+                      setIsLogin(!isLogin);
+                      setError(null);
+                      setSuccess(null);
+                    }}
+                    className="text-neural-cyan font-medium hover:text-electric-blue transition-colors underline decoration-neural-cyan/30 underline-offset-4 hover:decoration-electric-blue"
+                  >
+                    {isLogin ? "Create an account" : "Sign in"}
+                  </button>
+                </>
+              )}
             </p>
           </div>
         </motion.div>
