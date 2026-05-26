@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { signOut, useSession } from "next-auth/react";
 import { User, Bell, Shield, Paintbrush, Database, Sparkles, LogOut, Command, Zap, Volume2, Moon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -85,6 +86,7 @@ function NeuralSlider({ value, onChange, min = 1, max = 3, labels, color = "#FF8
 }
 
 export default function Settings() {
+  const { data: session } = useSession();
   const [activeTab, setActiveTab] = useState("profile");
   const [processingIntensity, setProcessingIntensity] = useState(2);
   const [adaptiveQuiz, setAdaptiveQuiz] = useState(true);
@@ -92,6 +94,11 @@ export default function Settings() {
   const [darkMode, setDarkMode] = useState(true);
   const [emailNotifs, setEmailNotifs] = useState(true);
   const [pushNotifs, setPushNotifs] = useState(true);
+
+  const nameParts = session?.user?.name ? session.user.name.split(" ") : ["User", ""];
+  const firstName = nameParts[0] || "User";
+  const lastName = nameParts.slice(1).join(" ") || "";
+  const email = session?.user?.email || "user@neurolearn.ai";
 
   return (
     <div className="space-y-8 min-h-[calc(100vh-8rem)]">
@@ -143,7 +150,10 @@ export default function Settings() {
 
             <div className="h-px bg-white/5 my-2 mx-4" />
 
-            <button className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-300 text-sm font-medium text-danger/80 hover:bg-danger/10 hover:text-danger">
+            <button
+              onClick={() => signOut({ callbackUrl: "/auth" })}
+              className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-300 text-sm font-medium text-danger/80 hover:bg-danger/10 hover:text-danger cursor-pointer"
+            >
               <LogOut className="w-5 h-5" />
               Sign Out
             </button>
@@ -226,9 +236,9 @@ export default function Settings() {
                     {/* Form Fields */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
                       {[
-                        { label: "Given Name", value: "Alex", span: false },
-                        { label: "Surname", value: "Chen", span: false },
-                        { label: "Primary Email Link", value: "alex.chen@quantum.io", span: true },
+                        { label: "Given Name", value: firstName, span: false },
+                        { label: "Surname", value: lastName, span: false },
+                        { label: "Primary Email Link", value: email, span: true },
                       ].map((field, i) => (
                         <div key={i} className={`space-y-2.5 ${field.span ? "md:col-span-2" : ""}`}>
                           <label className="text-xs font-semibold text-text-ghost uppercase tracking-widest">
