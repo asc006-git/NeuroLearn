@@ -11,6 +11,9 @@ const nextConfig = {
     // Allow production builds to complete even if the project has type errors.
     ignoreBuildErrors: true,
   },
+  turbopack: {
+    root: __dirname,
+  },
   experimental: {
     optimizePackageImports: ['lucide-react', 'recharts', 'framer-motion'],
   },
