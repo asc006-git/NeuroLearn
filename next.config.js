@@ -14,6 +14,7 @@ const nextConfig = {
   turbopack: {
     root: __dirname,
   },
+  outputFileTracingRoot: __dirname,
   experimental: {
     optimizePackageImports: ['lucide-react', 'recharts', 'framer-motion'],
   },
