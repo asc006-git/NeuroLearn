@@ -65,16 +65,35 @@ model VerificationToken {
 }
 
 model Document {
-  id               String            @id @default(uuid())
+  id               String              @id @default(uuid())
   userId           String
   title            String
   fileUrl          String
-  extractedText    String            @db.Text
-  embeddings       String?           @db.Text // Serialized float array of semantic features
-  processingStatus String            @default("ready") // ready, processing, completed, error
-  uploadedAt       DateTime          @default(now())
-  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  extractedText    String              @db.Text
+  embeddings       String?             @db.Text // Serialized float array of semantic features
+  processingStatus String              @default("Uploading") // Uploading, Extracting, Processing, Generating Summary, Generating Quiz, Completed, Failed
+  uploadedAt       DateTime            @default(now())
+  user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   summaries        Summary[]
+  extraction       Extraction?
+  statusLogs       DocumentStatusLog[]
+}
+
+model Extraction {
+  id         String   @id @default(uuid())
+  documentId String   @unique
+  text       String   @db.Text
+  createdAt  DateTime @default(now())
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+}
+
+model DocumentStatusLog {
+  id         String   @id @default(uuid())
+  documentId String
+  status     String
+  message    String?  @db.Text
+  createdAt  DateTime @default(now())
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 }
 
 model Summary {
