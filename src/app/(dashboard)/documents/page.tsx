@@ -202,16 +202,47 @@ export default function Documents() {
                         </div>
 
                         <div className="flex items-center justify-between mt-auto pt-4 border-t border-white/5 relative z-10">
-                          <div
-                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
-                            style={{
-                              background: "rgba(5, 8, 22, 0.8)",
-                              border: "1px solid rgba(255,255,255,0.06)",
-                            }}
-                          >
-                            <Tag className="w-3 h-3 text-text-ghost" />
-                            <span className="text-xs font-semibold text-text-muted">Ingested</span>
-                          </div>
+                          {(() => {
+                            const status = doc.processingStatus || "Completed";
+                            const isCompleted = status === "Completed" || status === "completed" || status === "ready";
+                            const isFailed = status === "Failed" || status === "error";
+                            const isActive = !isCompleted && !isFailed;
+
+                            let statusColor = "rgba(255,255,255,0.06)";
+                            let textColor = "text-text-muted";
+                            let label = "Ingested";
+
+                            if (isCompleted) {
+                              statusColor = "rgba(0, 245, 212, 0.12)";
+                              textColor = "text-neural-cyan";
+                              label = "Ingested";
+                            } else if (isFailed) {
+                              statusColor = "rgba(239, 68, 68, 0.12)";
+                              textColor = "text-danger";
+                              label = "Failed";
+                            } else {
+                              statusColor = "rgba(255, 138, 0, 0.12)";
+                              textColor = "text-quantum-orange";
+                              label = status;
+                            }
+
+                            return (
+                              <div
+                                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg"
+                                style={{
+                                  background: "rgba(5, 8, 22, 0.8)",
+                                  border: `1px solid ${statusColor}`,
+                                }}
+                              >
+                                {isActive ? (
+                                  <Loader2 className="w-3 h-3 text-quantum-orange animate-spin" />
+                                ) : (
+                                  <Tag className="w-3 h-3 text-text-ghost" />
+                                )}
+                                <span className={`text-xs font-semibold ${textColor}`}>{label}</span>
+                              </div>
+                            );
+                          })()}
                           <div className="flex gap-2">
                             <button
                               onClick={() => handleDelete(doc.id)}
