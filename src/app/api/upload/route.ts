@@ -203,7 +203,42 @@ export async function POST(req: NextRequest) {
             },
           });
 
-          // ── Stage 6: Finalize ─────────────────────────────
+          // ── Stage 6: Generate Knowledge Map ────────────────
+          try {
+            const parsedConcepts = typeof summaryResult.concepts === "string"
+              ? JSON.parse(summaryResult.concepts)
+              : summaryResult.concepts;
+            if (Array.isArray(parsedConcepts) && parsedConcepts.length > 0) {
+              const colors = ["#FF8A00", "#00F5D4", "#38BDF8", "#8B5CF6"];
+              const centerX = 50;
+              const centerY = 50;
+              const angleStep = (2 * Math.PI) / parsedConcepts.length;
+              const createdNodes: any[] = [];
+              for (let i = 0; i < parsedConcepts.length; i++) {
+                const concept = parsedConcepts[i];
+                const angle = i * angleStep;
+                const radius = 15 + Math.random() * 10;
+                const node = await prisma.knowledgeMap.create({
+                  data: {
+                    userId: user.id,
+                    topic: concept.term || concept.topic || `Concept ${i + 1}`,
+                    category: concept.category || cleanTitle,
+                    relevance: concept.relevance || Math.round(70 + Math.random() * 30),
+                    color: colors[i % colors.length],
+                    points: JSON.stringify(concept.points || [concept.definition || `Key concept from ${cleanTitle}`]),
+                    connections: "[]",
+                    x: centerX + radius * Math.cos(angle),
+                    y: centerY + radius * Math.sin(angle),
+                  },
+                });
+                createdNodes.push(node);
+              }
+            }
+          } catch (kmError) {
+            console.error("[Knowledge Map Generation Error]", kmError);
+          }
+
+          // ── Stage 7: Finalize ─────────────────────────────
           // Record learning session activity
           await prisma.learningSession.create({
             data: {
