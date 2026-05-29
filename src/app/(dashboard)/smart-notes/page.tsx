@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -38,69 +37,30 @@ interface KnowledgeLink {
   target: KnowledgeNode;
 }
 
-const initialNodes: KnowledgeNode[] = [
-  {
-    id: 1,
-    topic: "Action Potentials",
-    category: "Neuroscience",
-    relevance: 98,
-    color: "#FF8A00",
-    points: [
-      "Rapid rise and subsequent fall in voltage or membrane potential.",
-      "Follows the 'all-or-none' principle.",
-      "Caused by the opening and closing of voltage-gated ion channels.",
-    ],
-    connections: [2],
-    x: 20,
-    y: 30,
-  },
-  {
-    id: 2,
-    topic: "Neurotransmitters",
-    category: "Biochemistry",
-    relevance: 95,
-    color: "#00F5D4",
-    points: [
-      "Chemical messengers that cross the synaptic gaps between neurons.",
-      "Excitatory (e.g., Glutamate) vs. Inhibitory (e.g., GABA).",
-    ],
-    connections: [1],
-    x: 60,
-    y: 20,
-  },
-  {
-    id: 3,
-    topic: "Hebbian Theory",
-    category: "Learning",
-    relevance: 88,
-    color: "#38BDF8",
-    points: [
-      "Neurons that fire together, wire together.",
-      "Explains adaptation of neurons in the brain during the learning process.",
-    ],
-    connections: [4],
-    x: 80,
-    y: 60,
-  },
-  {
-    id: 4,
-    topic: "Synaptic Plasticity",
-    category: "Neuroscience",
-    relevance: 92,
-    color: "#8B5CF6",
-    points: [
-      "The ability of synapses to strengthen or weaken over time.",
-      "Fundamental mechanism for memory and learning.",
-    ],
-    connections: [3, 1],
-    x: 30,
-    y: 70,
-  },
-];
-
 export default function SmartNotes() {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const nodeRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const [activeNode, setActiveNode] = useState<string | null>(null);
+
+  const [transform, setTransform] = useState({
+    x: 0,
+    y: 0,
+    k: 1,
+  });
+
   const [loading, setLoading] = useState(true);
   const [nodesData, setNodesData] = useState<any[]>([]);
+
+  const [, setTick] = useState(0);
+
+  const simulationRef =
+    useRef<d3.Simulation<any, undefined> | null>(null);
+
+  const nodesRef = useRef<any[]>([]);
+
+  const linksRef = useRef<any[]>([]);
 
   const fetchNodes = async () => {
     try {
@@ -122,48 +82,32 @@ export default function SmartNotes() {
   useEffect(() => {
     fetchNodes();
   }, []);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const nodeRefs = useRef<Record<string, HTMLDivElement | null>>({});
-
-  const [activeNode, setActiveNode] = useState<string | null>(null);
-
-  const [transform, setTransform] = useState({
-    x: 0,
-    y: 0,
-    k: 1,
-  });
-
-  const [, setTick] = useState(0);
-
-  const simulationRef =
-    useRef<d3.Simulation<any, undefined> | null>(null);
-
-  const nodesRef = useRef<any[]>([]);
-
-  const linksRef = useRef<any[]>([]);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!containerRef.current || nodesData.length === 0) {
+      setLoading(false);
+      return;
+    }
 
+    setLoading(false);
     const width = containerRef.current.clientWidth;
     const height = containerRef.current.clientHeight || 600;
 
-    nodesRef.current = initialNodes.map((n) => ({
+    nodesRef.current = nodesData.map((n: any) => ({
       ...n,
-      x: (n.x / 100) * width,
-      y: (n.y / 100) * height,
+      x: (n.x / 100) * width || width / 2,
+      y: (n.y / 100) * height || height / 2,
     }));
 
     linksRef.current = [];
 
-    nodesRef.current.forEach((source) => {
-      source.connections.forEach((targetId: number) => {
+    nodesRef.current.forEach((source: any) => {
+      (source.connections || []).forEach((targetId: string) => {
         const target = nodesRef.current.find(
-          (n) => n.id === targetId
+          (n: any) => String(n.id) === String(targetId)
         );
 
-        if (target && source.id < targetId) {
+        if (target && String(source.id) < String(target.id)) {
           linksRef.current.push({
             source,
             target,
@@ -171,6 +115,10 @@ export default function SmartNotes() {
         }
       });
     });
+
+    if (simulationRef.current) {
+      simulationRef.current.stop();
+    }
 
     const simulation = d3
       .forceSimulation(nodesRef.current)
@@ -214,7 +162,7 @@ export default function SmartNotes() {
     d3Container.on("dblclick.zoom", null);
 
     setTimeout(() => {
-      nodesRef.current.forEach((node) => {
+      nodesRef.current.forEach((node: any) => {
         const el = nodeRefs.current[node.id];
 
         if (!el) return;
@@ -222,8 +170,7 @@ export default function SmartNotes() {
         d3.select(el)
           .datum(node)
           .call(
-            d3
-              .drag<HTMLDivElement, KnowledgeNode>()
+            d3.drag<HTMLDivElement, any>()
               .on("start", (e, d) => {
                 if (!e.active) {
                   simulation.alphaTarget(0.3).restart();
@@ -239,7 +186,6 @@ export default function SmartNotes() {
                 if (!e.active) {
                   simulation.alphaTarget(0);
                 }
-
                 d.fx = null;
                 d.fy = null;
               })
@@ -250,7 +196,7 @@ export default function SmartNotes() {
     return () => {
       simulation.stop();
     };
-  }, []);
+  }, [nodesData]);
 
   return (
     <div className="space-y-8 h-[calc(100vh-8rem)] flex flex-col relative">
@@ -316,6 +262,22 @@ export default function SmartNotes() {
         </div>
       </div>
 
+      {loading ? (
+        <div className="flex-1 flex flex-col items-center justify-center bg-white/[0.01] border border-white/5 rounded-3xl relative z-10">
+          <div className="w-10 h-10 border-2 border-neural-cyan border-t-transparent rounded-full animate-spin mb-3" />
+          <p className="text-sm font-semibold text-text-muted uppercase tracking-wider">Mapping neural knowledge graph...</p>
+        </div>
+      ) : nodesData.length === 0 ? (
+        <div className="flex-1 flex flex-col items-center justify-center text-center bg-white/[0.01] border border-white/5 rounded-3xl p-8 relative z-10">
+          <div className="w-16 h-16 bg-white/5 border border-white/8 rounded-2xl flex items-center justify-center mb-5 text-text-muted">
+            <Network className="w-8 h-8" />
+          </div>
+          <h3 className="text-lg font-bold text-text-primary mb-2">No knowledge map generated yet</h3>
+          <p className="text-sm text-text-muted max-w-sm leading-relaxed">
+            Upload PDF documents from the dashboard to automatically generate a neural knowledge map with interconnected concepts.
+          </p>
+        </div>
+      ) : (
       <div
         ref={containerRef}
         className="flex-1 relative z-10 rounded-3xl border overflow-hidden"
@@ -480,12 +442,12 @@ export default function SmartNotes() {
                         </ul>
 
                         <div className="pt-4 border-t border-white/5 flex flex-wrap gap-2">
-                          {node.connections.map(
-                            (connId: number) => {
+                          {(node.connections || []).map(
+                            (connId: string) => {
                               const connNode =
-                                initialNodes.find(
-                                  (n) =>
-                                    n.id === connId
+                                nodesData.find(
+                                  (n: any) =>
+                                    String(n.id) === String(connId)
                                 );
 
                               if (!connNode) return null;
@@ -518,6 +480,7 @@ export default function SmartNotes() {
           })}
         </div>
       </div>
+      )}
     </div>
   );
 }
