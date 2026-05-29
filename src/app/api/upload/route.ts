@@ -113,34 +113,15 @@ export async function POST(req: NextRequest) {
           send("extracting", "Extracting text content from PDF via neural parser...");
           await updateDocStatus("Extracting", "PDF text extraction in progress.");
 
-          // Dynamic import of pdf-parse to avoid bundling issues
-          let pdfParse: any;
-          try {
-            pdfParse = await import("pdf-parse");
-          } catch {
-            // Fallback: try require
-            try {
-              pdfParse = require("pdf-parse");
-            } catch {
-              pdfParse = null;
-            }
-          }
-
+          // Extract text using pdf-parse with server-side compatible worker path
           let rawText = "";
           try {
-            if (pdfParse && typeof pdfParse.PDFParse === "function") {
-              const parser = new pdfParse.PDFParse({ data: fileBuffer });
-              const result = await parser.getText();
-              rawText = result.text || "";
-            } else if (pdfParse && typeof pdfParse.default === "function") {
-              const res = await pdfParse.default(fileBuffer);
-              rawText = res.text || "";
-            } else if (typeof pdfParse === "function") {
-              const res = await pdfParse(fileBuffer);
-              rawText = res.text || "";
-            } else {
-              throw new Error("PDF parser library could not be loaded or instantiated.");
-            }
+            const { PDFParse } = await import("pdf-parse");
+            const workerPath = path.resolve(process.cwd(), "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs");
+            PDFParse.setWorker(pathToFileURL(workerPath).href);
+            const parser = new PDFParse({ data: new Uint8Array(fileBuffer) });
+            const result = await parser.getText();
+            rawText = result.text;
           } catch (pdfError: any) {
             send("error", `Failed to parse PDF: ${pdfError.message}`);
             await updateDocStatus("Failed", `PDF parse error: ${pdfError.message}`);
@@ -232,6 +213,19 @@ export async function POST(req: NextRequest) {
                   },
                 });
                 createdNodes.push(node);
+              }
+
+              // Update connections to actual created node UUIDs
+              for (let i = 0; i < createdNodes.length; i++) {
+                if (createdNodes.length > 1) {
+                  const nextNode = createdNodes[(i + 1) % createdNodes.length];
+                  await prisma.knowledgeMap.update({
+                    where: { id: createdNodes[i].id },
+                    data: {
+                      connections: JSON.stringify([nextNode.id]),
+                    },
+                  });
+                }
               }
             }
           } catch (kmError) {
