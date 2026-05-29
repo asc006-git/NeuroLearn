@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { TrendingUp, Clock, BrainCircuit, Activity, Target } from "lucide-react";
-import { useState, useEffect } from "react";
 
 const springConfig = { stiffness: 120, damping: 18, mass: 0.8 };
 
@@ -68,13 +67,6 @@ export default function Analytics() {
   
   const aiDiagnosis = data?.aiDiagnosis || "Upload your first document to begin cognitive analysis.";
 
-  const originalStatsIgnored = [
-    { label: "Deep Work Hours", value: "32.4h", icon: Clock, color: "#38BDF8" },
-    { label: "Concepts Mastered", value: "148", icon: Target, color: "#FF8A00" },
-    { label: "Neural Synapses", value: "2.4k", icon: BrainCircuit, color: "#00F5D4" },
-    { label: "Efficiency Delta", value: "+34%", icon: TrendingUp, color: "#8B5CF6" },
-  ];
-
   return (
     <motion.div
       variants={containerVariants}
@@ -82,6 +74,13 @@ export default function Analytics() {
       animate="show"
       className="space-y-8"
     >
+      {loading ? (
+        <div className="w-full min-h-[60vh] flex flex-col items-center justify-center bg-white/[0.01] border border-white/5 rounded-3xl">
+          <div className="w-10 h-10 border-2 border-neural-cyan border-t-transparent rounded-full animate-spin mb-3" />
+          <p className="text-sm font-semibold text-text-muted uppercase tracking-wider">Syncing cognitive telemetry...</p>
+        </div>
+      ) : (
+      <>
       {/* Header */}
       <motion.div variants={itemVariants} className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
@@ -231,11 +230,7 @@ export default function Analytics() {
               Subject Mastery
             </h3>
             <div className="space-y-8">
-              {[
-                { topic: "Neuroscience", progress: 85, color: "#00F5D4" },
-                { topic: "Quantum Mechanics", progress: 62, color: "#38BDF8" },
-                { topic: "Macroeconomics", progress: 40, color: "#FF8A00" },
-              ].map((topic, i) => (
+              {subjectMastery.map((topic: any, i: number) => (
                 <div key={i} className="group">
                   <div className="flex justify-between text-sm mb-3">
                     <span className="text-text-secondary font-medium">{topic.topic}</span>
@@ -287,16 +282,14 @@ export default function Analytics() {
                 </h3>
               </div>
               <p className="text-text-muted leading-relaxed text-sm">
-                Your retention in{" "}
-                <span className="text-text-primary font-medium">Neuroscience</span> is
-                optimal. Focus your next deep-work block on{" "}
-                <span className="text-quantum-orange font-medium">Macroeconomics</span> to
-                balance your knowledge matrix.
+                {aiDiagnosis}
               </p>
             </div>
           </div>
         </div>
       </motion.div>
+    </>
+    )}
     </motion.div>
   );
 }
