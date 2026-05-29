@@ -393,7 +393,7 @@ export default function Dashboard() {
             </select>
           </div>
 
-          <div className="flex-1 min-h-[300px] relative z-10">
+          <div className="w-full h-[300px] relative z-10">
             {!isMounted ? (
               <div className="w-full h-full min-h-[300px] flex flex-col items-center justify-center bg-white/[0.02] border border-white/5 rounded-2xl animate-pulse">
                 <BrainCircuit className="w-8 h-8 text-neural-cyan/40 mb-2 animate-neural-pulse" />
