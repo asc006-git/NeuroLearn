@@ -107,28 +107,10 @@ export function UploadArea() {
                 setProgressPercent(90);
                 setProgressMsg(data.message);
               } else if (data.status === "complete") {
-                setProgressPercent(95);
-                setProgressMsg("Finalizing database catalog synchronization...");
-                
-                // Fire and wait for the database persistence API
-                const saveResponse = await fetch("/api/upload/save", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    filename: file.name,
-                    text: data.result.chunks.join("\n"),
-                    textLength: data.result.text_length
-                  })
-                });
-
-                if (!saveResponse.ok) {
-                  throw new Error("Ingestion complete, but failed to write knowledge graph to database.");
-                }
-
                 setProgressPercent(100);
                 setUploadStatus("complete");
                 
-                // Optional: Trigger a dashboard reload or refresh
+                // Reload page after 1.5s to show new data
                 setTimeout(() => {
                   window.location.reload();
                 }, 1500);
