@@ -228,7 +228,6 @@ export default function SmartNotes() {
                 if (!e.active) {
                   simulation.alphaTarget(0.3).restart();
                 }
-
                 d.fx = d.x;
                 d.fy = d.y;
               })
