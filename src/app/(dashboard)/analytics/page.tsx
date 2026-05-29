@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { TrendingUp, Clock, BrainCircuit, Activity, Target } from "lucide-react";
+import { useState, useEffect } from "react";
 
 const springConfig = { stiffness: 120, damping: 18, mass: 0.8 };
 
