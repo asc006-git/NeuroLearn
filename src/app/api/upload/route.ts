@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { cleanText, generateSummary, generateQuiz } from "@/lib/ai-engine";
 import path from "path";
+import { pathToFileURL } from "url";
 import fs from "fs/promises";
 
 // ═══════════════════════════════════════════════════════════════
