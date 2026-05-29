@@ -124,9 +124,9 @@ export default function SmartNotes() {
   }, []);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const nodeRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const nodeRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  const [activeNode, setActiveNode] = useState<number | null>(null);
+  const [activeNode, setActiveNode] = useState<string | null>(null);
 
   const [transform, setTransform] = useState({
     x: 0,
@@ -137,11 +137,11 @@ export default function SmartNotes() {
   const [, setTick] = useState(0);
 
   const simulationRef =
-    useRef<d3.Simulation<KnowledgeNode, undefined> | null>(null);
+    useRef<d3.Simulation<any, undefined> | null>(null);
 
-  const nodesRef = useRef<KnowledgeNode[]>([]);
+  const nodesRef = useRef<any[]>([]);
 
-  const linksRef = useRef<KnowledgeLink[]>([]);
+  const linksRef = useRef<any[]>([]);
 
   useEffect(() => {
     if (!containerRef.current) return;
