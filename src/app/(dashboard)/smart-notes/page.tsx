@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -98,6 +99,29 @@ const initialNodes: KnowledgeNode[] = [
 ];
 
 export default function SmartNotes() {
+  const [loading, setLoading] = useState(true);
+  const [nodesData, setNodesData] = useState<any[]>([]);
+
+  const fetchNodes = async () => {
+    try {
+      const res = await fetch("/api/knowledge-map");
+      if (res.ok) {
+        const json = await res.json();
+        if (json.nodes && json.nodes.length > 0) {
+          setNodesData(json.nodes);
+          return;
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching knowledge map:", err);
+    }
+    setNodesData([]);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchNodes();
+  }, []);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const nodeRefs = useRef<Record<number, HTMLDivElement | null>>({});
