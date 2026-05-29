@@ -8,7 +8,7 @@ import { useState, useEffect } from "react";
 
 const springConfig = { stiffness: 120, damping: 18, mass: 0.8 };
 
-const activityData = [
+const fallbackActivityData = [
   { name: "Mon", hours: 2, neuralActivity: 40 },
   { name: "Tue", hours: 4, neuralActivity: 65 },
   { name: "Wed", hours: 3, neuralActivity: 50 },
@@ -52,6 +52,23 @@ export default function Analytics() {
   }, []);
 
   const stats = [
+    { label: "Deep Work Hours", value: data?.metrics?.deepWorkHours ? `${data.metrics.deepWorkHours}h` : "0h", icon: Clock, color: "#38BDF8" },
+    { label: "Concepts Mastered", value: data?.metrics?.conceptsMastered?.toString() || "0", icon: Target, color: "#FF8A00" },
+    { label: "Neural Synapses", value: data?.metrics?.neuralSynapses ? `${data.metrics.neuralSynapses}` : "0", icon: BrainCircuit, color: "#00F5D4" },
+    { label: "Efficiency Delta", value: data?.metrics?.efficiencyDelta || "+0%", icon: TrendingUp, color: "#8B5CF6" },
+  ];
+  
+  const activityData = data?.activityData || fallbackActivityData;
+  
+  const subjectMastery = data?.subjectMastery || [
+    { topic: "Neuroscience", progress: 0, color: "#00F5D4" },
+    { topic: "Data Science", progress: 0, color: "#38BDF8" },
+    { topic: "Machine Learning", progress: 0, color: "#FF8A00" },
+  ];
+  
+  const aiDiagnosis = data?.aiDiagnosis || "Upload your first document to begin cognitive analysis.";
+
+  const originalStatsIgnored = [
     { label: "Deep Work Hours", value: "32.4h", icon: Clock, color: "#38BDF8" },
     { label: "Concepts Mastered", value: "148", icon: Target, color: "#FF8A00" },
     { label: "Neural Synapses", value: "2.4k", icon: BrainCircuit, color: "#00F5D4" },
