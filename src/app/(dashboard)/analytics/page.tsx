@@ -145,7 +145,7 @@ export default function Analytics() {
           <h3 className="text-xl font-display font-semibold text-text-primary mb-8 relative z-10">
             Neural Activity & Focus Duration
           </h3>
-          <div className="flex-1 min-h-[350px] relative z-10">
+          <div className="w-full h-[350px] relative z-10">
             {!isMounted ? (
               <div className="w-full h-full min-h-[350px] flex flex-col items-center justify-center bg-white/[0.02] border border-white/5 rounded-2xl animate-pulse">
                 <BrainCircuit className="w-8 h-8 text-electric-blue/45 mb-2 animate-neural-pulse" />
