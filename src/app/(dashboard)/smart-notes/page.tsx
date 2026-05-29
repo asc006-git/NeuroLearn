@@ -173,14 +173,11 @@ export default function SmartNotes() {
     });
 
     const simulation = d3
-      .forceSimulation<KnowledgeNode>(nodesRef.current)
+      .forceSimulation(nodesRef.current)
       .force(
         "link",
-        d3
-          .forceLink<KnowledgeNode, KnowledgeLink>(
-            linksRef.current
-          )
-          .id((d) => d.id)
+        d3.forceLink(linksRef.current)
+          .id((d: any) => d.id)
           .distance(300)
       )
       .force(
