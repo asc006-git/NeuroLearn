@@ -30,8 +30,25 @@ const itemVariants = {
 
 export default function Analytics() {
   const [isMounted, setIsMounted] = useState(false);
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     setIsMounted(true);
+    async function fetchAnalytics() {
+      try {
+        const res = await fetch("/api/analytics");
+        if (res.ok) {
+          const json = await res.json();
+          setData(json.data);
+        }
+      } catch (err) {
+        console.error("Analytics fetch error:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchAnalytics();
   }, []);
 
   const stats = [
