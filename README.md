@@ -9,4 +9,3 @@ NeuroLearn AI is an AI-powered learning assistant built using Next.js 16, TypeSc
 - **Database & Storage**: Prisma ORM & PostgreSQL
 - **Styles & Animations**: Tailwind CSS 4.0 & Framer Motion
 - **Data Visualizations**: Recharts & D3
-
