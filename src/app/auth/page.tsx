@@ -350,8 +350,8 @@ export default function Auth() {
               {isForgotPassword
                 ? "Enter your email link to receive a secure reset token."
                 : isLogin
-                ? "Enter your credentials to access your neural workspace."
-                : "Join the next generation of accelerated learning."}
+                  ? "Enter your credentials to access your neural workspace."
+                  : "Join the next generation of accelerated learning."}
             </p>
           </div>
 
@@ -518,7 +518,7 @@ export default function Auth() {
                     d="M12 23c3.24 0 5.97-1.07 7.96-2.91l-3.71-2.88c-1.03.69-2.35 1.1-4.25 1.1-3.08 0-5.74-2.38-6.68-5.46L1.5 15.82C3.4 19.65 7.35 23 12 23z"
                   />
                 </svg>
-                Google OAuth
+                Login with Google
               </button>
             </>
           )}
