@@ -97,24 +97,30 @@ model DocumentStatusLog {
 }
 
 model Summary {
-  id             String            @id @default(uuid())
-  documentId     String
-  title          String
-  executiveBrief String            @db.Text
-  concepts       String            @db.Text // Serialized JSON array of concept objects
-  generatedAt    DateTime          @default(now())
-  document       Document          @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  quizzes        Quiz[]
+  id               String            @id @default(uuid())
+  documentId       String
+  title            String
+  documentType     String            @default("Study Material") // Research Paper, Project Report, Notes, Technical Document, Book Chapter, Study Material
+  executiveBrief   String            @db.Text
+  keyInsights      String?           @db.Text // Serialized JSON array of insight strings
+  concepts         String            @db.Text // Serialized JSON array of concept objects {name, explanation, importance}
+  technologyStack  String?           @db.Text // Serialized JSON array of detected tech {name, category, context}
+  revisionNotes    String?           @db.Text // Exam-oriented important points
+  chapterSummaries String?           @db.Text // Serialized JSON array of {heading, summary} objects
+  generatedAt      DateTime          @default(now())
+  document         Document          @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  quizzes          Quiz[]
 }
 
 model Quiz {
-  id         String            @id @default(uuid())
-  summaryId  String
-  questions  String            @db.Text // Serialized JSON array of question cards
-  difficulty String            @default("balanced")
-  score      Int               @default(0)
-  createdAt  DateTime          @default(now())
-  summary    Summary           @relation(fields: [summaryId], references: [id], onDelete: Cascade)
+  id            String            @id @default(uuid())
+  summaryId     String
+  questions     String            @db.Text // Serialized JSON array of question cards
+  questionTypes String            @default("MCQ") // Comma-separated: MCQ, FillBlank, TrueFalse, Match, ShortAnswer, Scenario
+  difficulty    String            @default("balanced")
+  score         Int               @default(0)
+  createdAt     DateTime          @default(now())
+  summary       Summary           @relation(fields: [summaryId], references: [id], onDelete: Cascade)
 }
 
 model KnowledgeMap {
