@@ -400,17 +400,230 @@ function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-export async function generateSummary(text: string, filename: string): Promise<SummaryResult> {
+// ─── Local Summary Generation (Intelligent Extractive) ──────
+
+function generateLocalSummary(text: string, filename: string): SummaryResult {
+  const cleanName = filename.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
+  const sections = detectHeadingsAndSections(text);
+  const allSentences = extractSentences(text);
+  const entities = extractKeyEntities(text, allSentences);
+  const documentType = detectDocumentType(text, sections);
+  const techStack = detectTechnologyStack(entities);
+
+  // ── Executive Brief: Build from top-scored sentences across sections ──
+  const scoredSentences: { text: string; score: number; section: string }[] = [];
+
+  for (const section of sections) {
+    const sectionSentences = extractSentences(section.content);
+    sectionSentences.forEach((s, i) => {
+      const score = scoreSentence(s, i, sectionSentences.length, entities, section.heading);
+      scoredSentences.push({ text: s, score, section: section.heading });
+    });
+  }
+
+  // If no sections found, score all sentences
+  if (scoredSentences.length === 0) {
+    allSentences.forEach((s, i) => {
+      const score = scoreSentence(s, i, allSentences.length, entities, "");
+      scoredSentences.push({ text: s, score, section: "General" });
+    });
+  }
+
+  scoredSentences.sort((a, b) => b.score - a.score);
+
+  // Build a coherent multi-paragraph executive brief
+  const topSentences = scoredSentences.slice(0, 15);
+  const briefParagraphs: string[] = [];
+
+  // Opening paragraph: What is this document about
+  const techNames = techStack.slice(0, 5).map((t) => t.name);
+  const conceptEntities = entities.filter((e) => e.type === "concept").slice(0, 5);
+  const conceptNames = conceptEntities.map((e) => capitalize(e.name));
+
+  let openingContext = `This ${documentType.toLowerCase()} presents`;
+  if (techNames.length > 0 || conceptNames.length > 0) {
+    const topics = [...conceptNames.slice(0, 3), ...techNames.slice(0, 2)].filter(Boolean);
+    openingContext += ` a comprehensive exploration of ${topics.join(", ")}`;
+  } else {
+    openingContext += ` "${cleanName}"`;
+  }
+
+  const purposeSentences = topSentences.filter((s) =>
+    /\b(?:purpose|objective|goal|aim|designed|developed|focuses|presents|proposes|introduces)\b/i.test(s.text)
+  );
+  const intro = purposeSentences.length > 0
+    ? `${openingContext}. ${purposeSentences[0].text}`
+    : `${openingContext}. ${topSentences[0]?.text || "The material covers multiple significant topics within its domain."}`;
+  briefParagraphs.push(intro);
+
+  // Middle paragraphs: Core methodologies and findings
+  const methodSentences = topSentences.filter((s) =>
+    /\b(?:method|approach|architecture|implement|framework|technique|algorithm|process|pipeline|workflow)\b/i.test(s.text) &&
+    !purposeSentences.includes(s)
+  );
+  if (methodSentences.length > 0) {
+    const methodParagraph = methodSentences.slice(0, 3).map((s) => s.text).join(" ");
+    briefParagraphs.push(`The methodology and architecture described in the document include several key components. ${methodParagraph}`);
+  }
+
+  // Results/findings paragraph
+  const resultSentences = topSentences.filter((s) =>
+    /\b(?:result|finding|achieve|demonstrate|show|improve|enhance|effective|successful|performance|outcome)\b/i.test(s.text) &&
+    !purposeSentences.includes(s) && !methodSentences.includes(s)
+  );
+  if (resultSentences.length > 0) {
+    const resultParagraph = resultSentences.slice(0, 3).map((s) => s.text).join(" ");
+    briefParagraphs.push(`Key findings and outcomes presented include: ${resultParagraph}`);
+  }
+
+  // Technology paragraph
+  if (techStack.length > 0) {
+    const techSummary = techStack.slice(0, 8).map((t) => `${t.name} (${t.category})`).join(", ");
+    briefParagraphs.push(`The technology ecosystem discussed encompasses: ${techSummary}. These technologies form the backbone of the system's architecture and implementation.`);
+  }
+
+  // Fill remaining with high-scoring unique sentences
+  const usedTexts = new Set(briefParagraphs.join(" ").split(". ").map((s) => s.trim()));
+  const remainingSentences = topSentences.filter(
+    (s) => !usedTexts.has(s.text.trim()) && !purposeSentences.includes(s) && !methodSentences.includes(s) && !resultSentences.includes(s)
+  );
+  if (remainingSentences.length > 0 && briefParagraphs.length < 5) {
+    briefParagraphs.push(`Additional significant elements include: ${remainingSentences.slice(0, 3).map((s) => s.text).join(" ")}`);
+  }
+
+  const executiveBrief = briefParagraphs.join("\n\n");
+
+  // ── Key Insights ──
+  const keyInsights: string[] = [];
+
+  // Extract from purpose-driven sentences
+  const insightSentences = scoredSentences
+    .filter((s) => s.score >= 3)
+    .slice(0, 10);
+
+  for (const s of insightSentences) {
+    // Trim to a clean bullet point
+    const insight = s.text.length > 200 ? s.text.substring(0, 197) + "..." : s.text;
+    if (!keyInsights.some((ki) => ki.includes(insight.substring(0, 50)))) {
+      keyInsights.push(insight);
+    }
+    if (keyInsights.length >= 8) break;
+  }
+
+  // Add structural insights
+  if (sections.length > 3) {
+    keyInsights.push(`The document is structured into ${sections.length} major sections: ${sections.slice(0, 5).map((s) => s.heading).join(", ")}${sections.length > 5 ? ` and ${sections.length - 5} more` : ""}.`);
+  }
+  if (techStack.length > 0) {
+    keyInsights.push(`${techStack.length} technologies/tools are referenced, spanning categories: ${[...new Set(techStack.map((t) => t.category))].join(", ")}.`);
+  }
+
+  // ── Core Concepts ──
+  const concepts: ConceptItem[] = [];
+
+  // From entities with context
+  const topEntities = entities.filter((e) => e.contexts.length > 0).slice(0, 8);
+  for (const entity of topEntities) {
+    // Find a definition-like sentence
+    const defSentence = entity.contexts.find((c) =>
+      /\b(?:is\s+(?:a|an|the)|refers?\s+to|provides?|enables?|used\s+(?:to|for)|designed\s+to|responsible\s+for)\b/i.test(c)
+    ) || entity.contexts[0];
+
+    const explanation = defSentence.length > 250 ? defSentence.substring(0, 247) + "..." : defSentence;
+
+    let importance = "";
+    if (entity.type === "technology") {
+      importance = `Core technology used in the system's ${techStack.find((t) => t.name.toLowerCase() === entity.name.toLowerCase())?.category?.toLowerCase() || "implementation"} layer.`;
+    } else {
+      importance = entity.frequency > 3
+        ? `Fundamental concept referenced ${entity.frequency} times throughout the document, indicating central importance to the material.`
+        : `Key concept that supports the document's core arguments and methodology.`;
+    }
+
+    concepts.push({
+      name: capitalize(entity.name),
+      explanation,
+      importance,
+    });
+
+    if (concepts.length >= 6) break;
+  }
+
+  // If we found fewer than 3 concepts, extract from definition patterns in text
+  if (concepts.length < 3) {
+    const defPattern = /([A-Z][a-zA-Z\s]{2,25})\s+(?:is\s+(?:a|an)\s+)([^.]{20,150})\./g;
+    let defMatch: RegExpExecArray | null;
+    const usedNames = new Set(concepts.map((c) => c.name.toLowerCase()));
+    while ((defMatch = defPattern.exec(text)) !== null && concepts.length < 5) {
+      const name = defMatch[1].trim();
+      if (usedNames.has(name.toLowerCase())) continue;
+      if (/^(this|that|the|it|there|which)\b/i.test(name)) continue;
+      usedNames.add(name.toLowerCase());
+      concepts.push({
+        name,
+        explanation: `${name} is a ${defMatch[2].trim()}.`,
+        importance: "Defined concept within the document's domain of study.",
+      });
+    }
+  }
+
+  // ── Revision Notes ──
+  const revisionPoints: string[] = [];
+  // Definitions
+  const definitionEntities = entities.filter((e) => e.contexts.some((c) => /\b(?:is\s+(?:a|an)|defined|means)\b/i.test(c)));
+  for (const de of definitionEntities.slice(0, 5)) {
+    const defCtx = de.contexts.find((c) => /\b(?:is\s+(?:a|an)|defined|means)\b/i.test(c));
+    if (defCtx) revisionPoints.push(`• ${capitalize(de.name)}: ${defCtx.length > 150 ? defCtx.substring(0, 147) + "..." : defCtx}`);
+  }
+  // Key facts from high-scoring sentences
+  const factSentences = scoredSentences
+    .filter((s) => s.score >= 4 && !revisionPoints.some((rp) => rp.includes(s.text.substring(0, 30))))
+    .slice(0, 5);
+  for (const fs of factSentences) {
+    revisionPoints.push(`• ${fs.text.length > 150 ? fs.text.substring(0, 147) + "..." : fs.text}`);
+  }
+  // Tech stack summary
+  if (techStack.length > 0) {
+    revisionPoints.push(`• Technology Stack: ${techStack.map((t) => t.name).join(", ")}`);
+  }
+  const revisionNotes = revisionPoints.length > 0
+    ? `IMPORTANT REVISION POINTS:\n\n${revisionPoints.join("\n\n")}`
+    : "No specific revision points could be extracted from this document.";
+
+  // ── Chapter Summaries ──
+  const chapterSummaries: ChapterSummary[] = [];
+  for (const section of sections) {
+    if (section.content.length < 50) continue;
+    const sectionSentences = extractSentences(section.content);
+    const topN = sectionSentences
+      .map((s, i) => ({ text: s, score: scoreSentence(s, i, sectionSentences.length, entities, section.heading) }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3)
+      .map((s) => s.text);
+
+    chapterSummaries.push({
+      heading: section.heading,
+      summary: topN.join(" ") || section.content.substring(0, 300),
+    });
+  }
+
+  // ── Build title ──
+  const title = `${documentType}: ${cleanName}`;
+
   return {
-    title: filename,
-    documentType: "Study Material",
-    executiveBrief: "",
-    keyInsights: [],
-    concepts: [],
-    technologyStack: [],
-    revisionNotes: "",
-    chapterSummaries: []
+    title,
+    documentType,
+    executiveBrief,
+    keyInsights,
+    concepts,
+    technologyStack: techStack,
+    revisionNotes,
+    chapterSummaries,
   };
+}
+
+export async function generateSummary(text: string, filename: string): Promise<SummaryResult> {
+  return generateLocalSummary(text, filename);
 }
 export async function generateQuiz(text: string, filename: string): Promise<QuizResult> {
   return {
