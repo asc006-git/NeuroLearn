@@ -1118,14 +1118,52 @@ ${truncatedText}`
   }
 }
 
+// ─── Public API ─────────────────────────────────────────────
+
 export async function generateSummary(text: string, filename: string): Promise<SummaryResult> {
-  const res = await tryGeminiSummary(text, filename);
-  return res || generateLocalSummary(text, filename);
+  // Try Gemini first
+  const geminiResult = await tryGeminiSummary(text, filename);
+  if (geminiResult) {
+    console.log("[AI Engine] Summary generated via Gemini API — intelligent analysis complete");
+    return geminiResult;
+  }
+
+  // Enhanced local fallback with structural analysis
+  console.log("[AI Engine] Summary generated via enhanced local NLP (semantic analysis)");
+  return generateLocalSummary(text, filename);
 }
+
 export async function generateQuiz(text: string, filename: string): Promise<QuizResult> {
-  const res = await tryGeminiQuiz(text, filename);
-  return res || generateLocalQuiz(text, filename);
+  // Try Gemini first
+  const geminiResult = await tryGeminiQuiz(text, filename);
+  if (geminiResult) {
+    console.log("[AI Engine] Quiz generated via Gemini API — multi-type assessment complete");
+    return geminiResult;
+  }
+
+  // Enhanced local fallback with contextual questions
+  console.log("[AI Engine] Quiz generated via enhanced local NLP (contextual extraction)");
+  return generateLocalQuiz(text, filename);
 }
+
 export function chunkText(text: string, chunkSize: number = 1000): string[] {
-  return [];
+  // Semantic chunking: prefer breaking at paragraph/section boundaries
+  const paragraphs = text.split(/\n{2,}/);
+  const chunks: string[] = [];
+  let current: string[] = [];
+  let len = 0;
+
+  for (const para of paragraphs) {
+    if (len + para.length > chunkSize && current.length > 0) {
+      chunks.push(current.join("\n\n"));
+      current = [];
+      len = 0;
+    }
+    current.push(para);
+    len += para.length;
+  }
+  if (current.length > 0) {
+    chunks.push(current.join("\n\n"));
+  }
+  return chunks;
 }
