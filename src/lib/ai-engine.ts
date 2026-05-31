@@ -154,6 +154,137 @@ function detectHeadingsAndSections(text: string): Section[] {
   return sections;
 }
 
+// ─── Document Type Detection ────────────────────────────────
+
+function detectDocumentType(text: string, sections: Section[]): string {
+  const lower = text.toLowerCase();
+  const headings = sections.map((s) => s.heading.toLowerCase());
+
+  // Research Paper markers
+  const researchMarkers = ["abstract", "methodology", "literature review", "related work", "hypothesis", "experimental results", "peer review", "citations", "references"];
+  const researchScore = researchMarkers.filter((m) => lower.includes(m)).length;
+
+  // Project Report markers
+  const projectMarkers = ["project description", "objectives", "implementation", "tech stack", "technologies used", "system design", "architecture", "screenshots", "deployment", "team members"];
+  const projectScore = projectMarkers.filter((m) => lower.includes(m)).length;
+
+  // Book Chapter markers
+  const bookMarkers = ["chapter", "table of contents", "preface", "index", "glossary", "further reading"];
+  const bookScore = bookMarkers.filter((m) => lower.includes(m) || headings.some((h) => h.includes(m))).length;
+
+  // Technical Document markers
+  const techMarkers = ["api", "endpoint", "configuration", "installation", "setup", "prerequisites", "dependencies", "troubleshooting", "documentation"];
+  const techScore = techMarkers.filter((m) => lower.includes(m)).length;
+
+  // Notes markers
+  const notesMarkers = ["note:", "important:", "remember:", "key points", "summary points", "bullet"];
+  const notesScore = notesMarkers.filter((m) => lower.includes(m)).length;
+
+  const scores: [string, number][] = [
+    ["Research Paper", researchScore],
+    ["Project Report", projectScore],
+    ["Book Chapter", bookScore],
+    ["Technical Document", techScore],
+    ["Notes", notesScore],
+  ];
+
+  scores.sort((a, b) => b[1] - a[1]);
+
+  if (scores[0][1] >= 2) return scores[0][0];
+  return "Study Material";
+}
+
+// ─── Entity & Concept Extraction ────────────────────────────
+
+interface ExtractedEntity {
+  name: string;
+  type: string; // technology, concept, methodology, organization, metric
+  frequency: number;
+  contexts: string[];
+}
+
+function extractKeyEntities(text: string, sentences: string[]): ExtractedEntity[] {
+  const entities: Map<string, ExtractedEntity> = new Map();
+
+  // Technology patterns
+  const techPatterns = /\b(React|Angular|Vue\.?js|Next\.?js|Node\.?js|Express|Django|Flask|FastAPI|Spring\s?Boot|\.NET|Laravel|Ruby\s+on\s+Rails|PostgreSQL|MySQL|MongoDB|Redis|SQLite|Firebase|Supabase|Docker|Kubernetes|AWS|Azure|GCP|Google\s+Cloud|Heroku|Vercel|Netlify|TensorFlow|PyTorch|Keras|Scikit-learn|OpenAI|GPT-?\d*|BERT|LLM|NLP|Gemini|Claude|Langchain|Prisma|Sequelize|GraphQL|REST\s?API|WebSocket|JWT|OAuth|bcrypt|TypeScript|JavaScript|Python|Java|Rust|Go|C\+\+|C#|Swift|Kotlin|Tailwind\s?CSS|Bootstrap|Material\s?UI|Framer\s?Motion|HTML5?|CSS3?|SASS|LESS|Git|GitHub|GitLab|CI\/CD|Jenkins|Nginx|Apache|Linux|Windows|macOS|Android|iOS|Pandas|NumPy|Matplotlib|Hugging\s?Face|Transformers|LSTM|CNN|RNN|GAN|RAG|Vector\s+Database|Pinecone|Weaviate|ChromaDB|FAISS|Elasticsearch|Kafka|RabbitMQ|gRPC|Microservices|Monolithic|Serverless|Lambda|S3|EC2|RDS|DynamoDB|Terraform|Ansible|Prometheus|Grafana)\b/gi;
+
+  // Concept/methodology patterns (multi-word terms often found in academic/technical docs)
+  const conceptPatterns = /\b(machine\s+learning|deep\s+learning|artificial\s+intelligence|natural\s+language\s+processing|computer\s+vision|reinforcement\s+learning|transfer\s+learning|supervised\s+learning|unsupervised\s+learning|neural\s+network|convolutional\s+neural|recurrent\s+neural|attention\s+mechanism|transformer\s+architecture|embedding|tokenization|fine[\s-]tuning|pre[\s-]training|data\s+pipeline|ETL|data\s+warehouse|data\s+lake|feature\s+engineering|model\s+training|hyperparameter|cross[\s-]validation|overfitting|underfitting|gradient\s+descent|backpropagation|loss\s+function|activation\s+function|batch\s+normalization|dropout|regularization|ensemble\s+method|random\s+forest|decision\s+tree|support\s+vector|logistic\s+regression|linear\s+regression|clustering|classification|regression\s+analysis|sentiment\s+analysis|named\s+entity\s+recognition|text\s+classification|image\s+recognition|object\s+detection|semantic\s+segmentation|generative\s+adversarial|variational\s+autoencoder|recommendation\s+system|collaborative\s+filtering|content[\s-]based\s+filtering|user\s+authentication|role[\s-]based\s+access|session\s+management|API\s+gateway|load\s+balancer|database\s+normalization|indexing|caching|pagination|rate\s+limiting|encryption|hashing|digital\s+signature|blockchain|smart\s+contract|agile\s+methodology|scrum|kanban|waterfall|DevOps|continuous\s+integration|continuous\s+deployment|test[\s-]driven\s+development|behavior[\s-]driven\s+development|design\s+pattern|MVC|MVVM|singleton|factory\s+pattern|observer\s+pattern|dependency\s+injection|microservice\s+architecture|event[\s-]driven|message\s+queue|pub[\s-]sub)\b/gi;
+
+  // Extract technologies
+  let match: RegExpExecArray | null;
+  const techRegex = new RegExp(techPatterns.source, "gi");
+  while ((match = techRegex.exec(text)) !== null) {
+    const name = match[1];
+    const key = name.toLowerCase().replace(/\s+/g, " ");
+    const existing = entities.get(key);
+    // Find context sentence
+    const contextSentence = sentences.find((s) => s.toLowerCase().includes(key)) || "";
+    if (existing) {
+      existing.frequency++;
+      if (contextSentence && existing.contexts.length < 3) {
+        existing.contexts.push(contextSentence);
+      }
+    } else {
+      entities.set(key, {
+        name,
+        type: "technology",
+        frequency: 1,
+        contexts: contextSentence ? [contextSentence] : [],
+      });
+    }
+  }
+
+  // Extract concepts
+  const conceptRegex = new RegExp(conceptPatterns.source, "gi");
+  while ((match = conceptRegex.exec(text)) !== null) {
+    const name = match[1];
+    const key = name.toLowerCase().replace(/\s+/g, " ");
+    const existing = entities.get(key);
+    const contextSentence = sentences.find((s) => s.toLowerCase().includes(key)) || "";
+    if (existing) {
+      existing.frequency++;
+      if (contextSentence && existing.contexts.length < 3) {
+        existing.contexts.push(contextSentence);
+      }
+    } else {
+      entities.set(key, {
+        name,
+        type: "concept",
+        frequency: 1,
+        contexts: contextSentence ? [contextSentence] : [],
+      });
+    }
+  }
+
+  // Extract defined terms: "X is a...", "X refers to...", "X is defined as..."
+  const definitionPatterns = [
+    /([A-Z][a-zA-Z\s]{2,30})\s+(?:is\s+(?:a|an|the)|refers?\s+to|is\s+defined\s+as|can\s+be\s+described\s+as|represents?|provides?|enables?|allows?)\s+([^.]{20,150})\./g,
+  ];
+
+  for (const pattern of definitionPatterns) {
+    const defRegex = new RegExp(pattern.source, "gi");
+    while ((match = defRegex.exec(text)) !== null) {
+      const name = match[1].trim();
+      const key = name.toLowerCase();
+      // Skip common false positives
+      if (key.length < 3 || /^(this|that|the|it|they|we|our|these|those|which|what|there|here)$/i.test(key)) continue;
+      if (!entities.has(key)) {
+        entities.set(key, {
+          name,
+          type: "concept",
+          frequency: 1,
+          contexts: [match[0]],
+        });
+      }
+    }
+  }
+
+  return Array.from(entities.values())
+    .sort((a, b) => b.frequency - a.frequency);
+}
+
 export async function generateSummary(text: string, filename: string): Promise<SummaryResult> {
   return {
     title: filename,
