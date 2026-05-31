@@ -2,11 +2,27 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FileText, Download, Share2, Sparkles, Search, SlidersHorizontal, BookOpen, Layers, Loader2 } from "lucide-react";
+import {
+  FileText, Sparkles, Search, Layers, Loader2,
+  BookOpen, Cpu, Lightbulb, GraduationCap,
+  ChevronDown, ChevronRight, Code2, Brain,
+  ClipboardList, ListChecks, Bookmark,
+} from "lucide-react";
 
 const springConfig = { stiffness: 120, damping: 18, mass: 0.8 };
 
 const COLORS = ["#00F5D4", "#38BDF8", "#FF8A00", "#8B5CF6"];
+
+const DOC_TYPE_CONFIG: Record<string, { color: string; icon: any }> = {
+  "Research Paper": { color: "#8B5CF6", icon: BookOpen },
+  "Project Report": { color: "#FF8A00", icon: ClipboardList },
+  "Notes": { color: "#38BDF8", icon: FileText },
+  "Technical Document": { color: "#00F5D4", icon: Code2 },
+  "Book Chapter": { color: "#F472B6", icon: Bookmark },
+  "Study Material": { color: "#FACC15", icon: GraduationCap },
+};
+
+type SummaryTab = "brief" | "insights" | "concepts" | "techstack" | "revision" | "chapters";
 
 export default function Summaries() {
   const [summaries, setSummaries] = useState<any[]>([]);
@@ -14,6 +30,8 @@ export default function Summaries() {
   const [activeSummary, setActiveSummary] = useState<any>(null);
   const [searchFocused, setSearchFocused] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState<SummaryTab>("brief");
+  const [expandedChapters, setExpandedChapters] = useState<Set<number>>(new Set());
 
   const fetchSummaries = async () => {
     try {
@@ -37,10 +55,53 @@ export default function Summaries() {
     fetchSummaries();
   }, []);
 
+  useEffect(() => {
+    setActiveTab("brief");
+    setExpandedChapters(new Set());
+  }, [activeSummary?.id]);
+
   // Filter based on search query
   const filteredSummaries = summaries.filter((summary) =>
     summary.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Safe JSON parse helper
+  const safeJsonParse = (str: string | null | undefined, fallback: any = []) => {
+    if (!str) return fallback;
+    try { return JSON.parse(str); } catch { return fallback; }
+  };
+
+  const toggleChapter = (idx: number) => {
+    setExpandedChapters((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx); else next.add(idx);
+      return next;
+    });
+  };
+
+  // Tab configuration
+  const tabs: { key: SummaryTab; label: string; icon: any }[] = [
+    { key: "brief", label: "Executive Brief", icon: FileText },
+    { key: "insights", label: "Key Insights", icon: Lightbulb },
+    { key: "concepts", label: "Core Concepts", icon: Brain },
+    { key: "techstack", label: "Tech Stack", icon: Cpu },
+    { key: "revision", label: "Revision Notes", icon: GraduationCap },
+    { key: "chapters", label: "Chapters", icon: ListChecks },
+  ];
+
+  // Determine which tabs have content
+  const getTabHasContent = (tab: SummaryTab): boolean => {
+    if (!activeSummary) return false;
+    switch (tab) {
+      case "brief": return !!activeSummary.executiveBrief;
+      case "insights": return safeJsonParse(activeSummary.keyInsights).length > 0;
+      case "concepts": return safeJsonParse(activeSummary.concepts).length > 0;
+      case "techstack": return safeJsonParse(activeSummary.technologyStack).length > 0;
+      case "revision": return !!activeSummary.revisionNotes;
+      case "chapters": return safeJsonParse(activeSummary.chapterSummaries).length > 0;
+      default: return false;
+    }
+  };
 
   return (
     <div className="space-y-8 h-[calc(100vh-8rem)] flex flex-col min-h-[35rem]">
@@ -98,6 +159,9 @@ export default function Summaries() {
             {filteredSummaries.map((summary, idx) => {
               const isActive = activeSummary?.id === summary.id;
               const color = COLORS[idx % COLORS.length];
+              const docType = summary.documentType || "Study Material";
+              const typeConfig = DOC_TYPE_CONFIG[docType] || DOC_TYPE_CONFIG["Study Material"];
+              const TypeIcon = typeConfig.icon;
               const dateStr = new Date(summary.generatedAt).toLocaleDateString("en-US", {
                 month: "short",
                 day: "numeric",
@@ -128,12 +192,12 @@ export default function Summaries() {
                     <div
                       className="p-2.5 rounded-xl group-hover:scale-110 transition-transform"
                       style={{
-                        background: `${color}15`,
-                        border: `1px solid ${color}25`,
-                        color,
+                        background: `${typeConfig.color}15`,
+                        border: `1px solid ${typeConfig.color}25`,
+                        color: typeConfig.color,
                       }}
                     >
-                      <Layers className="w-5 h-5" />
+                      <TypeIcon className="w-5 h-5" />
                     </div>
                     <span className="text-xs font-medium text-text-ghost">{dateStr}</span>
                   </div>
@@ -141,8 +205,11 @@ export default function Summaries() {
                     {summary.title}
                   </h3>
                   <div className="relative z-10 flex flex-wrap items-center gap-2 mt-auto">
-                    <span className="px-2.5 py-1 rounded-lg text-xs font-medium text-text-muted" style={{ background: "rgba(5, 8, 22, 0.8)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                      Brief
+                    <span
+                      className="px-2.5 py-1 rounded-lg text-xs font-medium"
+                      style={{ background: `${typeConfig.color}15`, color: typeConfig.color, border: `1px solid ${typeConfig.color}25` }}
+                    >
+                      {docType}
                     </span>
                     <span className="px-2.5 py-1 rounded-lg text-xs font-medium ml-auto" style={{ background: `${color}15`, color }}>
                       Ingested
@@ -172,63 +239,294 @@ export default function Summaries() {
                     <h2 className="text-2xl font-display font-bold text-text-primary mb-1 tracking-tight">
                       {activeSummary.title}
                     </h2>
-                    <div className="flex items-center gap-2 text-sm text-text-muted">
+                    <div className="flex items-center gap-2 text-sm text-text-muted flex-wrap">
                       <span>Source: {activeSummary.documentTitle}</span>
                       <span>•</span>
                       <span>Generated {new Date(activeSummary.generatedAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>
+                      {activeSummary.documentType && (
+                        <>
+                          <span>•</span>
+                          <span
+                            className="px-2 py-0.5 rounded-md text-xs font-semibold"
+                            style={{
+                              background: `${DOC_TYPE_CONFIG[activeSummary.documentType]?.color || "#64748B"}20`,
+                              color: DOC_TYPE_CONFIG[activeSummary.documentType]?.color || "#64748B",
+                            }}
+                          >
+                            {activeSummary.documentType}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
+                </div>
+
+                {/* Tab Navigation */}
+                <div className="flex items-center gap-1 px-6 pt-4 pb-2 overflow-x-auto shrink-0 border-b border-white/5" style={{ background: "rgba(11, 16, 32, 0.5)" }}>
+                  {tabs.map((tab) => {
+                    const hasContent = getTabHasContent(tab.key);
+                    if (!hasContent && tab.key !== "brief") return null;
+                    const isActive = activeTab === tab.key;
+                    const TabIcon = tab.icon;
+                    return (
+                      <button
+                        key={tab.key}
+                        onClick={() => setActiveTab(tab.key)}
+                        className="relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer whitespace-nowrap"
+                        style={{
+                          background: isActive ? "rgba(0, 245, 212, 0.08)" : "transparent",
+                          color: isActive ? "#00F5D4" : "#64748B",
+                          border: isActive ? "1px solid rgba(0, 245, 212, 0.2)" : "1px solid transparent",
+                        }}
+                      >
+                        <TabIcon className="w-3.5 h-3.5" />
+                        {tab.label}
+                      </button>
+                    );
+                  })}
                 </div>
 
                 {/* Content */}
                 <div className="p-8 flex-1 overflow-y-auto relative z-10" style={{ background: "rgba(5, 8, 22, 0.3)" }}>
                   <AnimatePresence mode="wait">
                     <motion.div
-                      key={activeSummary.id}
+                      key={`${activeSummary.id}-${activeTab}`}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -20 }}
                       transition={{ duration: 0.3 }}
-                      className="max-w-3xl mx-auto space-y-10"
+                      className="max-w-3xl mx-auto space-y-8"
                     >
-                      <div className="space-y-6">
-                        <div className="flex items-center gap-3 mb-6">
-                          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/15 to-transparent" />
-                          <span className="text-xs font-semibold text-text-muted tracking-widest uppercase">
-                            Executive Brief
-                          </span>
-                          <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+                      {/* ── Executive Brief ── */}
+                      {activeTab === "brief" && (
+                        <div className="space-y-6">
+                          <div className="flex items-center gap-3 mb-6">
+                            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+                            <span className="text-xs font-semibold text-text-muted tracking-widest uppercase">
+                              Executive Brief
+                            </span>
+                            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+                          </div>
+                          <div className="text-[15px] text-text-secondary leading-[1.85] font-light whitespace-pre-line">
+                            {activeSummary.executiveBrief}
+                          </div>
                         </div>
+                      )}
 
-                        <p className="text-lg text-text-secondary leading-relaxed font-light whitespace-pre-line">
-                          {activeSummary.executiveBrief}
-                        </p>
-                      </div>
+                      {/* ── Key Insights ── */}
+                      {activeTab === "insights" && (() => {
+                        const insights = safeJsonParse(activeSummary.keyInsights);
+                        return (
+                          <div className="space-y-6">
+                            <div className="flex items-center gap-3 mb-4">
+                              <Lightbulb className="w-5 h-5 text-[#FACC15]" />
+                              <h3 className="text-xl font-display font-semibold text-text-primary">Key Insights</h3>
+                            </div>
+                            <div className="space-y-3">
+                              {insights.map((insight: string, i: number) => (
+                                <motion.div
+                                  key={i}
+                                  initial={{ opacity: 0, x: -10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: i * 0.05 }}
+                                  className="flex gap-3 p-4 rounded-2xl"
+                                  style={{ background: "rgba(11, 16, 32, 0.5)", border: "1px solid rgba(255,255,255,0.06)" }}
+                                >
+                                  <div className="mt-1 shrink-0">
+                                    <div className="w-2 h-2 rounded-full bg-[#FACC15] shadow-[0_0_8px_rgba(250,204,21,0.5)]" />
+                                  </div>
+                                  <p className="text-sm text-text-secondary leading-relaxed">{insight}</p>
+                                </motion.div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
 
-                      <div className="space-y-6">
-                        <h3 className="text-xl font-display font-semibold text-text-primary">Core Mechanics & concepts</h3>
-                        <div className="grid gap-4">
-                          {(() => {
-                            try {
-                              const parsed = JSON.parse(activeSummary.concepts);
-                              return parsed.map((item: any, i: number) => (
-                                <div key={i} className="p-5 rounded-2xl flex gap-4 hover:bg-white/[0.02] transition-colors" style={{ background: "rgba(11, 16, 32, 0.5)", border: "1px solid rgba(255,255,255,0.06)" }}>
-                                  <div className="mt-1.5">
-                                    <div className="w-2 h-2 rounded-full bg-neural-cyan shadow-[0_0_8px_rgba(0,245,212,0.6)]" />
+                      {/* ── Core Concepts ── */}
+                      {activeTab === "concepts" && (() => {
+                        const concepts = safeJsonParse(activeSummary.concepts);
+                        return (
+                          <div className="space-y-6">
+                            <div className="flex items-center gap-3 mb-4">
+                              <Brain className="w-5 h-5 text-neural-cyan" />
+                              <h3 className="text-xl font-display font-semibold text-text-primary">Core Concepts</h3>
+                            </div>
+                            <div className="grid gap-4">
+                              {concepts.map((item: any, i: number) => (
+                                <motion.div
+                                  key={i}
+                                  initial={{ opacity: 0, y: 10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ delay: i * 0.08 }}
+                                  className="p-5 rounded-2xl hover:bg-white/[0.02] transition-colors"
+                                  style={{ background: "rgba(11, 16, 32, 0.5)", border: "1px solid rgba(255,255,255,0.06)" }}
+                                >
+                                  <div className="flex items-start gap-4">
+                                    <div className="mt-1.5 shrink-0">
+                                      <div className="w-2.5 h-2.5 rounded-full bg-neural-cyan shadow-[0_0_8px_rgba(0,245,212,0.6)]" />
+                                    </div>
+                                    <div className="flex-1">
+                                      <h4 className="text-text-primary font-semibold mb-2 text-[15px]">
+                                        {item.name || item.term}
+                                      </h4>
+                                      <p className="text-sm text-text-muted leading-relaxed mb-3">
+                                        {item.explanation || item.definition}
+                                      </p>
+                                      {(item.importance || item.application) && (
+                                        <div className="flex items-start gap-2 mt-2 p-3 rounded-xl" style={{ background: "rgba(0, 245, 212, 0.03)", border: "1px solid rgba(0, 245, 212, 0.08)" }}>
+                                          <Sparkles className="w-3.5 h-3.5 text-neural-cyan shrink-0 mt-0.5" />
+                                          <p className="text-xs text-text-ghost leading-relaxed">
+                                            {item.importance || item.application}
+                                          </p>
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
-                                  <div>
-                                    <h4 className="text-text-primary font-semibold mb-1">{item.term}</h4>
-                                    <p className="text-sm text-text-muted leading-relaxed mb-2">{item.definition}</p>
-                                    <p className="text-xs text-text-ghost font-mono">Application: {item.application}</p>
+                                </motion.div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* ── Technology Stack ── */}
+                      {activeTab === "techstack" && (() => {
+                        const techStack = safeJsonParse(activeSummary.technologyStack);
+                        // Group by category
+                        const grouped: Record<string, any[]> = {};
+                        for (const tech of techStack) {
+                          const cat = tech.category || "Other";
+                          if (!grouped[cat]) grouped[cat] = [];
+                          grouped[cat].push(tech);
+                        }
+                        return (
+                          <div className="space-y-6">
+                            <div className="flex items-center gap-3 mb-4">
+                              <Cpu className="w-5 h-5 text-[#38BDF8]" />
+                              <h3 className="text-xl font-display font-semibold text-text-primary">Technology Stack</h3>
+                              <span className="text-xs text-text-ghost px-2 py-0.5 rounded-lg bg-white/5">{techStack.length} detected</span>
+                            </div>
+                            <div className="space-y-6">
+                              {Object.entries(grouped).map(([category, techs], gi) => (
+                                <motion.div
+                                  key={category}
+                                  initial={{ opacity: 0, y: 10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ delay: gi * 0.08 }}
+                                >
+                                  <h4 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-3">{category}</h4>
+                                  <div className="flex flex-wrap gap-2">
+                                    {(techs as any[]).map((tech: any, ti: number) => (
+                                      <div
+                                        key={ti}
+                                        className="group relative px-4 py-2.5 rounded-xl text-sm font-medium cursor-default transition-all hover:scale-105"
+                                        style={{
+                                          background: "rgba(56, 189, 248, 0.06)",
+                                          border: "1px solid rgba(56, 189, 248, 0.15)",
+                                          color: "#38BDF8",
+                                        }}
+                                      >
+                                        <span className="flex items-center gap-2">
+                                          <Code2 className="w-3.5 h-3.5 opacity-60" />
+                                          {tech.name}
+                                        </span>
+                                        {tech.context && (
+                                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 rounded-xl text-xs text-text-secondary opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50" style={{ background: "rgba(11, 16, 32, 0.95)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                                            {tech.context.substring(0, 200)}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
                                   </div>
-                                </div>
-                              ));
-                            } catch (e) {
-                              return <p className="text-xs text-text-ghost">Concept schemas loading failed.</p>;
-                            }
-                          })()}
+                                </motion.div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* ── Revision Notes ── */}
+                      {activeTab === "revision" && (
+                        <div className="space-y-6">
+                          <div className="flex items-center gap-3 mb-4">
+                            <GraduationCap className="w-5 h-5 text-[#FF8A00]" />
+                            <h3 className="text-xl font-display font-semibold text-text-primary">Revision Notes</h3>
+                          </div>
+                          <div
+                            className="p-6 rounded-2xl"
+                            style={{ background: "rgba(11, 16, 32, 0.5)", border: "1px solid rgba(255,255,255,0.06)" }}
+                          >
+                            <p className="text-sm text-text-secondary leading-[1.9] whitespace-pre-line font-light">
+                              {activeSummary.revisionNotes || "No revision notes available for this document."}
+                            </p>
+                          </div>
                         </div>
-                      </div>
+                      )}
+
+                      {/* ── Chapter Summaries ── */}
+                      {activeTab === "chapters" && (() => {
+                        const chapters = safeJsonParse(activeSummary.chapterSummaries);
+                        return (
+                          <div className="space-y-6">
+                            <div className="flex items-center gap-3 mb-4">
+                              <ListChecks className="w-5 h-5 text-[#8B5CF6]" />
+                              <h3 className="text-xl font-display font-semibold text-text-primary">Chapter Summaries</h3>
+                              <span className="text-xs text-text-ghost px-2 py-0.5 rounded-lg bg-white/5">{chapters.length} sections</span>
+                            </div>
+                            <div className="space-y-3">
+                              {chapters.map((chapter: any, i: number) => {
+                                const isExpanded = expandedChapters.has(i);
+                                return (
+                                  <motion.div
+                                    key={i}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: i * 0.05 }}
+                                    className="rounded-2xl overflow-hidden transition-all"
+                                    style={{ background: "rgba(11, 16, 32, 0.5)", border: "1px solid rgba(255,255,255,0.06)" }}
+                                  >
+                                    <button
+                                      onClick={() => toggleChapter(i)}
+                                      className="w-full flex items-center justify-between p-5 cursor-pointer hover:bg-white/[0.02] transition-colors text-left"
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        <span className="text-xs font-bold text-text-ghost w-6 h-6 flex items-center justify-center rounded-lg bg-white/5">
+                                          {i + 1}
+                                        </span>
+                                        <h4 className="font-semibold text-text-primary text-sm">{chapter.heading}</h4>
+                                      </div>
+                                      {isExpanded ? (
+                                        <ChevronDown className="w-4 h-4 text-text-muted" />
+                                      ) : (
+                                        <ChevronRight className="w-4 h-4 text-text-muted" />
+                                      )}
+                                    </button>
+                                    <AnimatePresence>
+                                      {isExpanded && (
+                                        <motion.div
+                                          initial={{ height: 0, opacity: 0 }}
+                                          animate={{ height: "auto", opacity: 1 }}
+                                          exit={{ height: 0, opacity: 0 }}
+                                          transition={{ duration: 0.2 }}
+                                          className="overflow-hidden"
+                                        >
+                                          <div className="px-5 pb-5 pt-0">
+                                            <div className="h-px bg-white/5 mb-4" />
+                                            <p className="text-sm text-text-secondary leading-relaxed">
+                                              {chapter.summary}
+                                            </p>
+                                          </div>
+                                        </motion.div>
+                                      )}
+                                    </AnimatePresence>
+                                  </motion.div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       {/* AI Synthesis callout */}
                       <div
@@ -239,7 +537,7 @@ export default function Summaries() {
                             <Sparkles className="w-5 h-5" /> AI Synthesis Context
                           </h4>
                           <p className="text-text-secondary leading-relaxed text-sm">
-                            This brief represents high-density, vector-indexed semantic data generated during ingestion. It is integrated within your visual workspace memory block.
+                            This analysis was generated using intelligent document understanding — including structural detection, entity extraction, semantic analysis, and contextual concept identification. The summary reflects deep comprehension of the source material, not keyword frequency.
                           </p>
                         </div>
                       </div>
