@@ -908,11 +908,223 @@ function negateSentence(sentence: string): string {
   return sentence.replace(/\b(first|primary|main|key|important)\b/i, "least important");
 }
 
+// ─── Gemini API Integration (Enhanced) ──────────────────────
+
+async function tryGeminiSummary(text: string, filename: string): Promise<SummaryResult | null> {
+  const apiKey = process.env.GOOGLE_API_KEY;
+  if (!apiKey || apiKey.trim() === "") return null;
+
+  const cleanName = filename.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
+  // Gemini Flash supports 1M tokens, send more context
+  const truncatedText = text.substring(0, 30000);
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: `You are an expert educational AI that produces intelligent document analysis similar to ChatGPT, Claude, and NotebookLM. Analyze the following document and produce a comprehensive JSON response.
+
+REQUIREMENTS:
+1. Detect the document type (Research Paper, Project Report, Notes, Technical Document, Book Chapter, or Study Material)
+2. Generate a detailed 5-10 paragraph executive summary covering purpose, objectives, architecture, methodology, findings, technologies, and conclusions
+3. Extract 5-10 key insights as bullet points
+4. Identify 4-6 core concepts with name, explanation, and importance
+5. Detect all technologies, frameworks, databases, APIs, and tools mentioned
+6. Generate exam-oriented revision notes
+7. If the document has clear sections/chapters, summarize each one
+
+The summary should read like professional analysis, NOT keyword lists. Example quality:
+"This document presents an AI-Powered Content Simplifier and Interactive Learning Assistant developed to transform lengthy educational PDFs into structured learning material. The system integrates secure authentication, document processing, AI summarization, intelligent quiz generation, PostgreSQL storage, and interactive dashboards..."
+
+Respond with ONLY raw JSON (no markdown fences), in this exact structure:
+{
+  "title": "${cleanName}",
+  "documentType": "Research Paper|Project Report|Notes|Technical Document|Book Chapter|Study Material",
+  "executiveBrief": "5-10 paragraphs of coherent, analytical summary...",
+  "keyInsights": ["insight 1", "insight 2", ...],
+  "concepts": [
+    {"name": "Concept Name", "explanation": "Clear explanation of what it is and how it works...", "importance": "Why this concept matters in the document..."}
+  ],
+  "technologyStack": [
+    {"name": "Technology Name", "category": "Framework|Database|API|Language|AI/ML|Tool|Library", "context": "How it's used in the document..."}
+  ],
+  "revisionNotes": "Formatted exam-oriented notes with key definitions, facts, and important points...",
+  "chapterSummaries": [
+    {"heading": "Section Name", "summary": "Condensed summary of this section..."}
+  ]
+}
+
+Document text:
+${truncatedText}`
+          }]
+        }],
+        generationConfig: { temperature: 0.3, maxOutputTokens: 8192 }
+      }),
+    });
+
+    if (!response.ok) return null;
+
+    const json = await response.json();
+    const content = json.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!content) return null;
+
+    const cleaned = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+    const parsed = JSON.parse(cleaned);
+
+    // Validate required fields
+    if (!parsed.executiveBrief || !parsed.concepts) return null;
+
+    return {
+      title: parsed.title || `${cleanName}`,
+      documentType: parsed.documentType || "Study Material",
+      executiveBrief: parsed.executiveBrief,
+      keyInsights: parsed.keyInsights || [],
+      concepts: parsed.concepts || [],
+      technologyStack: parsed.technologyStack || [],
+      revisionNotes: parsed.revisionNotes || "",
+      chapterSummaries: parsed.chapterSummaries || [],
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function tryGeminiQuiz(text: string, filename: string): Promise<QuizResult | null> {
+  const apiKey = process.env.GOOGLE_API_KEY;
+  if (!apiKey || apiKey.trim() === "") return null;
+
+  const cleanName = filename.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
+  const truncatedText = text.substring(0, 30000);
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: `You are an expert quiz designer. Based on the following document, generate a comprehensive quiz. 
+
+CRITICAL RULES:
+- Do NOT generate keyword-based questions
+- Generate questions from actual concepts, methodology, and context
+- Each question must test understanding, not just word recognition
+- Include a mix of difficulty levels and question types
+
+Generate 8-12 questions across these types:
+1. MCQ (3-4 questions) — 4 options each, with explanations for why wrong options are wrong
+2. Fill in the Blanks (1-2 questions) — based on key definitions
+3. True/False (1-2 questions) — based on factual statements
+4. Match the Following (0-1 question) — match concepts to descriptions
+5. Short Answer (1 question) — requires brief analytical response
+6. Scenario-based (1 question) — applies concepts to a practical scenario
+
+Example of a GOOD question:
+"Why is PostgreSQL used in this project?" → "To store users, documents, summaries, quizzes, analytics, and learning history" with explanation about relational storage needs.
+
+Respond with ONLY raw JSON (no markdown fences):
+{
+  "questions": [
+    {
+      "id": "q1",
+      "type": "MCQ",
+      "difficulty": "Easy|Medium|Hard",
+      "question": "The question text...",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correctAnswer": "Exact text of correct option",
+      "explanation": "Why this is correct...",
+      "wrongOptionExplanations": {"Option B": "Why B is wrong...", "Option C": "Why C is wrong...", "Option D": "Why D is wrong..."}
+    },
+    {
+      "id": "q2",
+      "type": "TrueFalse",
+      "difficulty": "Easy",
+      "question": "True or False: statement...",
+      "options": ["True", "False"],
+      "correctAnswer": "True",
+      "explanation": "Why..."
+    },
+    {
+      "id": "q3",
+      "type": "FillBlank",
+      "difficulty": "Medium",
+      "question": "________ is used to...",
+      "correctAnswer": "The answer",
+      "explanation": "Why..."
+    },
+    {
+      "id": "q4",
+      "type": "Match",
+      "difficulty": "Easy",
+      "question": "Match the following...",
+      "matchPairs": [{"left": "Term", "right": "Definition"}],
+      "correctAnswer": "Term → Definition, ...",
+      "explanation": "Why..."
+    },
+    {
+      "id": "q5",
+      "type": "ShortAnswer",
+      "difficulty": "Hard",
+      "question": "Explain briefly...",
+      "correctAnswer": "Expected answer...",
+      "explanation": "Key points to include..."
+    },
+    {
+      "id": "q6",
+      "type": "Scenario",
+      "difficulty": "Hard",
+      "scenario": "Consider this situation...",
+      "question": "What would you do...",
+      "correctAnswer": "Expected approach...",
+      "explanation": "Based on the document..."
+    }
+  ],
+  "difficulty": "balanced",
+  "questionTypes": ["MCQ", "TrueFalse", "FillBlank", "Match", "ShortAnswer", "Scenario"]
+}
+
+Document: "${cleanName}"
+Document text:
+${truncatedText}`
+          }]
+        }],
+        generationConfig: { temperature: 0.5, maxOutputTokens: 8192 }
+      }),
+    });
+
+    if (!response.ok) return null;
+
+    const json = await response.json();
+    const content = json.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!content) return null;
+
+    const cleaned = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
+    const parsed = JSON.parse(cleaned);
+
+    if (!parsed.questions || !Array.isArray(parsed.questions)) return null;
+
+    return {
+      questions: parsed.questions,
+      difficulty: parsed.difficulty || "balanced",
+      questionTypes: parsed.questionTypes || [...new Set(parsed.questions.map((q: any) => q.type))],
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function generateSummary(text: string, filename: string): Promise<SummaryResult> {
-  return generateLocalSummary(text, filename);
+  const res = await tryGeminiSummary(text, filename);
+  return res || generateLocalSummary(text, filename);
 }
 export async function generateQuiz(text: string, filename: string): Promise<QuizResult> {
-  return generateLocalQuiz(text, filename);
+  const res = await tryGeminiQuiz(text, filename);
+  return res || generateLocalQuiz(text, filename);
 }
 export function chunkText(text: string, chunkSize: number = 1000): string[] {
   return [];
