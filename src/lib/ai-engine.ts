@@ -69,6 +69,91 @@ export function cleanText(raw: string): string {
     .trim();
 }
 
+// ─── Structural Analysis ────────────────────────────────────
+
+interface Section {
+  heading: string;
+  content: string;
+  level: number;
+}
+
+function detectHeadingsAndSections(text: string): Section[] {
+  const lines = text.split("\n");
+  const sections: Section[] = [];
+  let currentHeading = "Introduction";
+  let currentContent: string[] = [];
+  let currentLevel = 1;
+
+  // Patterns for heading detection
+  const headingPatterns = [
+    // Numbered headings: "1. Introduction", "1.1 Background", "Chapter 1:"
+    /^(?:chapter\s+)?\d+(?:\.\d+)*[.:)]\s*(.+)/i,
+    // ALL CAPS headings (at least 3 words or >10 chars)
+    /^([A-Z][A-Z\s]{10,})$/,
+    // Markdown-style: "# Heading", "## Subheading"
+    /^#{1,4}\s+(.+)/,
+    // Roman numeral headings: "I. Introduction", "IV. Results"
+    /^(?:(?:I{1,3}|IV|V|VI{0,3}|IX|X{0,3})[.:)]\s+)(.+)/i,
+    // Keyword-based headings
+    /^((?:abstract|introduction|background|methodology|methods|results|discussion|conclusion|references|bibliography|acknowledgments|appendix|summary|overview|related work|literature review|future work|implementation|architecture|system design|evaluation|experimental results|analysis|findings|recommendations|objectives|scope|limitations|technologies used|tech stack|project description|problem statement))\s*$/i,
+  ];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      currentContent.push("");
+      continue;
+    }
+
+    let isHeading = false;
+    let headingText = "";
+    let headingLevel = 1;
+
+    for (let p = 0; p < headingPatterns.length; p++) {
+      const match = trimmed.match(headingPatterns[p]);
+      if (match) {
+        // ALL CAPS check: require at least 3 chars and not a full sentence
+        if (p === 1 && trimmed.length < 4) continue;
+        // Ensure it's not a regular sentence (headings are short)
+        const candidate = match[1] || trimmed;
+        if (candidate.split(/\s+/).length <= 12) {
+          isHeading = true;
+          headingText = candidate.replace(/^#+\s*/, "").trim();
+          headingLevel = p === 0 && trimmed.includes(".") ? 2 : 1;
+          break;
+        }
+      }
+    }
+
+    if (isHeading && headingText.length > 2) {
+      // Save previous section
+      if (currentContent.some((l) => l.trim().length > 0)) {
+        sections.push({
+          heading: currentHeading,
+          content: currentContent.join("\n").trim(),
+          level: currentLevel,
+        });
+      }
+      currentHeading = headingText;
+      currentContent = [];
+      currentLevel = headingLevel;
+    } else {
+      currentContent.push(trimmed);
+    }
+  }
+
+  // Push final section
+  if (currentContent.some((l) => l.trim().length > 0)) {
+    sections.push({
+      heading: currentHeading,
+      content: currentContent.join("\n").trim(),
+      level: currentLevel,
+    });
+  }
+
+  return sections;
+}
+
 export async function generateSummary(text: string, filename: string): Promise<SummaryResult> {
   return {
     title: filename,
