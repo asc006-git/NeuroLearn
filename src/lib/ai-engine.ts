@@ -622,15 +622,297 @@ function generateLocalSummary(text: string, filename: string): SummaryResult {
   };
 }
 
+// ─── Local Quiz Generation (Contextual) ─────────────────────
+
+function generateLocalQuiz(text: string, filename: string): QuizResult {
+  const allSentences = extractSentences(text);
+  const entities = extractKeyEntities(text, allSentences);
+  const sections = detectHeadingsAndSections(text);
+  const techStack = detectTechnologyStack(entities);
+  const cleanName = filename.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
+
+  const questions: QuizQuestion[] = [];
+  const usedContent = new Set<string>();
+  let qId = 1;
+
+  // ── MCQ Questions from entity contexts ──
+  const conceptEntities = entities.filter((e) => e.contexts.length > 0).slice(0, 6);
+  for (const entity of conceptEntities.slice(0, 3)) {
+    const context = entity.contexts[0];
+    if (!context || usedContent.has(context.substring(0, 50))) continue;
+    usedContent.add(context.substring(0, 50));
+
+    // Find what the entity does/is from context
+    const purposeMatch = context.match(
+      new RegExp(`${entity.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s+(?:is\\s+(?:used|designed|built|created)\\s+(?:to|for)|provides?|enables?|allows?|helps?)\\s+([^.]{10,100})`, "i")
+    );
+    const purpose = purposeMatch ? purposeMatch[1].trim() : null;
+
+    if (purpose) {
+      // Generate "Why is X used?" style question
+      const wrongOptions = [
+        `To replace all manual processes without any configuration`,
+        `To handle unrelated data visualization tasks only`,
+        `To serve as a temporary placeholder during development`,
+      ];
+
+      const correctAnswer = `To ${purpose}`;
+      const allOptions = [correctAnswer, ...wrongOptions];
+      shuffleArray(allOptions);
+
+      const wrongExplanations: Record<string, string> = {};
+      for (const wrong of wrongOptions) {
+        wrongExplanations[wrong] = `This is incorrect. The document specifically states that ${entity.name} is used to ${purpose}, not for "${wrong.toLowerCase().replace(/^to\s+/, "")}".`;
+      }
+
+      questions.push({
+        id: `q${qId++}`,
+        type: "MCQ",
+        difficulty: "Medium",
+        question: `According to the document, what is the primary purpose of ${capitalize(entity.name)} in this context?`,
+        options: allOptions,
+        correctAnswer,
+        explanation: `The document states: "${context.substring(0, 200)}${context.length > 200 ? "..." : ""}"`,
+        wrongOptionExplanations: wrongExplanations,
+      });
+    } else {
+      // "Which of the following is discussed" style
+      const wrongEntities = entities
+        .filter((e) => e.name.toLowerCase() !== entity.name.toLowerCase())
+        .slice(-3)
+        .map((e) => capitalize(e.name));
+
+      // Add plausible-sounding wrong options if we don't have enough
+      const fillers = ["Quantum Computing Architecture", "Distributed Ledger Technology", "Neural Pathway Optimization", "Autonomous System Integration"];
+      while (wrongEntities.length < 3) {
+        const filler = fillers[wrongEntities.length];
+        if (filler) wrongEntities.push(filler);
+      }
+
+      const correctAnswer = capitalize(entity.name);
+      const allOptions = [correctAnswer, ...wrongEntities.slice(0, 3)];
+      shuffleArray(allOptions);
+
+      const wrongExplanations: Record<string, string> = {};
+      for (const wrong of wrongEntities.slice(0, 3)) {
+        wrongExplanations[wrong] = `"${wrong}" is not a primary concept discussed in this context of the document.`;
+      }
+
+      questions.push({
+        id: `q${qId++}`,
+        type: "MCQ",
+        difficulty: "Easy",
+        question: `Which of the following concepts is discussed in relation to: "${context.substring(0, 120)}..."?`,
+        options: allOptions,
+        correctAnswer,
+        explanation: `${capitalize(entity.name)} is explicitly mentioned in the document. Context: "${context.substring(0, 200)}${context.length > 200 ? "..." : ""}"`,
+        wrongOptionExplanations: wrongExplanations,
+      });
+    }
+
+    if (questions.filter((q) => q.type === "MCQ").length >= 3) break;
+  }
+
+  // ── True/False Questions ──
+  const factualSentences = allSentences.filter((s) =>
+    /\b(?:is\s+(?:a|an|the)|uses?|provides?|supports?|enables?|includes?|contains?|requires?)\b/i.test(s) &&
+    s.length > 40 && s.length < 250
+  );
+
+  for (const sentence of factualSentences.slice(0, 2)) {
+    if (usedContent.has(sentence.substring(0, 50))) continue;
+    usedContent.add(sentence.substring(0, 50));
+
+    const isTrue = Math.random() > 0.4; // Bias toward true statements
+
+    if (isTrue) {
+      questions.push({
+        id: `q${qId++}`,
+        type: "TrueFalse",
+        difficulty: "Easy",
+        question: `True or False: ${sentence}`,
+        options: ["True", "False"],
+        correctAnswer: "True",
+        explanation: `This statement is TRUE. The document explicitly states: "${sentence}"`,
+      });
+    } else {
+      // Create a false statement by negating or altering the original
+      const falsified = negateSentence(sentence);
+      questions.push({
+        id: `q${qId++}`,
+        type: "TrueFalse",
+        difficulty: "Medium",
+        question: `True or False: ${falsified}`,
+        options: ["True", "False"],
+        correctAnswer: "False",
+        explanation: `This statement is FALSE. The document actually states: "${sentence}"`,
+      });
+    }
+  }
+
+  // ── Fill in the Blanks ──
+  const defSentences = allSentences.filter((s) =>
+    /\b(?:is\s+(?:a|an|the)|defined\s+as|known\s+as|refers?\s+to)\b/i.test(s)
+  );
+
+  for (const sentence of defSentences.slice(0, 2)) {
+    if (usedContent.has(sentence.substring(0, 50))) continue;
+    usedContent.add(sentence.substring(0, 50));
+
+    // Find a key term to blank out
+    const entityInSentence = entities.find((e) =>
+      sentence.toLowerCase().includes(e.name.toLowerCase()) && e.name.length > 2
+    );
+
+    if (entityInSentence) {
+      const blanked = sentence.replace(
+        new RegExp(entityInSentence.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"),
+        "________"
+      );
+
+      questions.push({
+        id: `q${qId++}`,
+        type: "FillBlank",
+        difficulty: "Medium",
+        question: `Fill in the blank: ${blanked}`,
+        correctAnswer: entityInSentence.name,
+        explanation: `The complete sentence reads: "${sentence}"`,
+      });
+    }
+  }
+
+  // ── Short Answer Questions ──
+  if (techStack.length > 0) {
+    const techNames = techStack.slice(0, 5).map((t) => t.name);
+    questions.push({
+      id: `q${qId++}`,
+      type: "ShortAnswer",
+      difficulty: "Medium",
+      question: `List at least 3 technologies or tools mentioned in "${cleanName}" and briefly describe their role.`,
+      correctAnswer: techStack.slice(0, 5).map((t) => `${t.name} — ${t.category}: ${t.context.substring(0, 80)}`).join("; "),
+      explanation: `The document references the following technologies: ${techNames.join(", ")}. Each plays a specific role in the system described.`,
+    });
+  }
+
+  // ── Scenario-based Questions ──
+  const scenarioSection = sections.find((s) =>
+    /\b(?:implementation|architecture|methodology|system\s+design|approach)\b/i.test(s.heading)
+  );
+  if (scenarioSection && scenarioSection.content.length > 100) {
+    const scenarioSentences = extractSentences(scenarioSection.content).slice(0, 3);
+    const scenarioText = scenarioSentences.join(" ");
+    if (scenarioText.length > 50) {
+      const entityForScenario = entities.find((e) => scenarioText.toLowerCase().includes(e.name.toLowerCase()));
+      const scenarioTopic = entityForScenario ? entityForScenario.name : scenarioSection.heading;
+
+      questions.push({
+        id: `q${qId++}`,
+        type: "Scenario",
+        difficulty: "Hard",
+        scenario: `Consider a scenario where you need to implement a system similar to what is described in the "${scenarioSection.heading}" section. ${scenarioText.substring(0, 300)}`,
+        question: `Based on the approach described in the document, what would be the most critical component or step when implementing ${scenarioTopic}? Explain why.`,
+        correctAnswer: `The document emphasizes: ${scenarioSentences[0] || "the systematic approach described in the methodology section"}. This is critical because it forms the foundation of the implementation described.`,
+        explanation: `The "${scenarioSection.heading}" section describes: ${scenarioText.substring(0, 250)}. Understanding this is key to applying the document's methodology.`,
+      });
+    }
+  }
+
+  // ── Match the Following (if enough entities) ──
+  if (techStack.length >= 3) {
+    const matchPairs = techStack.slice(0, 5).map((t) => ({
+      left: t.name,
+      right: t.category,
+    }));
+
+    questions.push({
+      id: `q${qId++}`,
+      type: "Match",
+      difficulty: "Easy",
+      question: `Match the following technologies mentioned in the document with their categories:`,
+      matchPairs,
+      correctAnswer: matchPairs.map((p) => `${p.left} → ${p.right}`).join(", "),
+      explanation: `These technologies are used in the system described in "${cleanName}": ${matchPairs.map((p) => `${p.left} serves as the ${p.right.toLowerCase()}`).join("; ")}.`,
+    });
+  }
+
+  // Ensure minimum questions
+  if (questions.length < 3) {
+    // Add a general comprehension MCQ
+    const topSentence = allSentences[0] || "the primary subject matter";
+    const mainEntity = entities[0];
+    const mainTopic = mainEntity ? capitalize(mainEntity.name) : cleanName;
+
+    questions.push({
+      id: `q${qId++}`,
+      type: "MCQ",
+      difficulty: "Easy",
+      question: `What is the primary focus of "${cleanName}"?`,
+      options: [
+        `${mainTopic} and its applications in the described context`,
+        "An unrelated historical analysis with no practical applications",
+        "Abstract theoretical proofs without implementation details",
+        "Random data collection without structured analysis",
+      ],
+      correctAnswer: `${mainTopic} and its applications in the described context`,
+      explanation: `The document primarily focuses on ${mainTopic}, as evidenced by: "${topSentence.substring(0, 150)}..."`,
+      wrongOptionExplanations: {
+        "An unrelated historical analysis with no practical applications": "The document focuses on practical, applied content rather than historical analysis.",
+        "Abstract theoretical proofs without implementation details": "The document contains concrete implementation details and practical methodology.",
+        "Random data collection without structured analysis": "The document presents structured, organized analysis of its subject matter.",
+      },
+    });
+  }
+
+  // Collect all question types used
+  const questionTypes = [...new Set(questions.map((q) => q.type))];
+
+  return {
+    questions,
+    difficulty: "balanced",
+    questionTypes,
+  };
+}
+
+// ─── Helper: Shuffle Array ──────────────────────────────────
+
+function shuffleArray<T>(array: T[]): void {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+}
+
+// ─── Helper: Negate a sentence for True/False ───────────────
+
+function negateSentence(sentence: string): string {
+  // Simple negation strategies
+  const replacements: [RegExp, string][] = [
+    [/\bis used\b/i, "is not used"],
+    [/\bprovides\b/i, "does not provide"],
+    [/\benables\b/i, "does not enable"],
+    [/\bsupports\b/i, "does not support"],
+    [/\bincludes\b/i, "excludes"],
+    [/\brequires\b/i, "does not require"],
+    [/\bcan\b/i, "cannot"],
+    [/\bis a\b/i, "is not a"],
+    [/\bare\b/i, "are not"],
+  ];
+
+  for (const [pattern, replacement] of replacements) {
+    if (pattern.test(sentence)) {
+      return sentence.replace(pattern, replacement);
+    }
+  }
+
+  // Fallback: swap key terms
+  return sentence.replace(/\b(first|primary|main|key|important)\b/i, "least important");
+}
+
 export async function generateSummary(text: string, filename: string): Promise<SummaryResult> {
   return generateLocalSummary(text, filename);
 }
 export async function generateQuiz(text: string, filename: string): Promise<QuizResult> {
-  return {
-    questions: [],
-    difficulty: "balanced",
-    questionTypes: []
-  };
+  return generateLocalQuiz(text, filename);
 }
 export function chunkText(text: string, chunkSize: number = 1000): string[] {
   return [];
