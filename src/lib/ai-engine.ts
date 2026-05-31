@@ -285,6 +285,121 @@ function extractKeyEntities(text: string, sentences: string[]): ExtractedEntity[
     .sort((a, b) => b.frequency - a.frequency);
 }
 
+// ─── Technology Stack Detection ─────────────────────────────
+
+function detectTechnologyStack(entities: ExtractedEntity[]): TechStackItem[] {
+  const techEntities = entities.filter((e) => e.type === "technology");
+
+  const categoryMap: Record<string, string> = {
+    react: "Frontend Framework", angular: "Frontend Framework", "vue.js": "Frontend Framework", vuejs: "Frontend Framework",
+    "next.js": "Fullstack Framework", nextjs: "Fullstack Framework", "nuxt.js": "Fullstack Framework",
+    "node.js": "Runtime", nodejs: "Runtime",
+    express: "Backend Framework", django: "Backend Framework", flask: "Backend Framework",
+    fastapi: "Backend Framework", "spring boot": "Backend Framework", springboot: "Backend Framework",
+    laravel: "Backend Framework", ".net": "Backend Framework", "ruby on rails": "Backend Framework",
+    postgresql: "Database", mysql: "Database", mongodb: "Database", redis: "Cache/Database",
+    sqlite: "Database", firebase: "BaaS", supabase: "BaaS",
+    docker: "DevOps", kubernetes: "DevOps", "ci/cd": "DevOps", jenkins: "DevOps",
+    aws: "Cloud Platform", azure: "Cloud Platform", gcp: "Cloud Platform", "google cloud": "Cloud Platform",
+    heroku: "Cloud Platform", vercel: "Hosting", netlify: "Hosting",
+    tensorflow: "AI/ML", pytorch: "AI/ML", keras: "AI/ML", "scikit-learn": "AI/ML",
+    openai: "AI/ML", gemini: "AI/ML", claude: "AI/ML", langchain: "AI/ML",
+    "hugging face": "AI/ML", transformers: "AI/ML",
+    prisma: "ORM", sequelize: "ORM",
+    graphql: "API", "rest api": "API", restapi: "API", websocket: "API", grpc: "API",
+    jwt: "Authentication", oauth: "Authentication", bcrypt: "Security",
+    typescript: "Language", javascript: "Language", python: "Language",
+    java: "Language", rust: "Language", go: "Language", "c++": "Language", "c#": "Language",
+    swift: "Language", kotlin: "Language",
+    "tailwind css": "CSS Framework", tailwindcss: "CSS Framework", bootstrap: "CSS Framework",
+    "material ui": "UI Library", "framer motion": "Animation Library",
+    git: "Version Control", github: "Platform", gitlab: "Platform",
+    nginx: "Web Server", apache: "Web Server",
+    elasticsearch: "Search Engine", kafka: "Message Broker", rabbitmq: "Message Broker",
+  };
+
+  return techEntities.slice(0, 15).map((entity) => {
+    const key = entity.name.toLowerCase().replace(/\s+/g, " ");
+    return {
+      name: entity.name,
+      category: categoryMap[key] || "Technology",
+      context: entity.contexts[0]?.substring(0, 200) || `Used in the document context.`,
+    };
+  });
+}
+
+// ─── Sentence Analysis ──────────────────────────────────────
+
+function extractSentences(text: string): string[] {
+  const raw = text.split(/(?<=[.!?])\s+/);
+  return raw
+    .map((s) => s.trim())
+    .filter((s) => s.length > 25 && s.length < 600);
+}
+
+function scoreSentence(
+  sentence: string,
+  position: number,
+  totalSentences: number,
+  entities: ExtractedEntity[],
+  sectionHeading: string
+): number {
+  let score = 0;
+
+  // Position bonus: early sentences in a section are often more important
+  const positionRatio = position / totalSentences;
+  if (positionRatio < 0.15) score += 3;
+  else if (positionRatio < 0.3) score += 2;
+
+  // Entity density: sentences mentioning more entities are more informative
+  const lowerSentence = sentence.toLowerCase();
+  for (const entity of entities) {
+    if (lowerSentence.includes(entity.name.toLowerCase())) {
+      score += entity.type === "technology" ? 2 : 1.5;
+    }
+  }
+
+  // Information markers: sentences with these patterns carry more meaning
+  const infoPatterns = [
+    /\b(?:therefore|consequently|as a result|in conclusion|significantly|importantly)\b/i,
+    /\b(?:purpose|objective|goal|aim|designed to|developed to|created to|built to)\b/i,
+    /\b(?:enables?|provides?|achieves?|improves?|enhances?|ensures?|facilitates?)\b/i,
+    /\b(?:architecture|framework|methodology|approach|algorithm|technique|strategy)\b/i,
+    /\b(?:integrates?|combines?|leverages?|utilizes?|implements?)\b/i,
+    /\b(?:results?\s+show|findings?\s+indicate|data\s+suggests?|analysis\s+reveals?)\b/i,
+    /\b(?:challenge|limitation|advantage|benefit|drawback|trade-off)\b/i,
+  ];
+  for (const pattern of infoPatterns) {
+    if (pattern.test(sentence)) score += 1.5;
+  }
+
+  // Contains numbers/statistics (often factual, important)
+  if (/\d+(?:\.\d+)?%|\d+\s+(?:times|percent|users|documents|records)/.test(sentence)) {
+    score += 1;
+  }
+
+  // Definition pattern (very informative)
+  if (/\b(?:is\s+(?:a|an|the)|refers?\s+to|defined\s+as|known\s+as)\b/i.test(sentence)) {
+    score += 2;
+  }
+
+  // Sentence length sweet spot (not too short, not too long)
+  if (sentence.length > 60 && sentence.length < 300) score += 1;
+
+  // Heading relevance: sentences near their heading's topic
+  if (sectionHeading && lowerSentence.includes(sectionHeading.toLowerCase().split(/\s+/)[0])) {
+    score += 1;
+  }
+
+  return score;
+}
+
+// ─── Capitalize Helper ──────────────────────────────────────
+
+function capitalize(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 export async function generateSummary(text: string, filename: string): Promise<SummaryResult> {
   return {
     title: filename,
