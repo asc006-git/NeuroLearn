@@ -155,31 +155,40 @@ export async function POST(req: NextRequest) {
           });
 
           // ── Stage 4: Generating Summary ───────────────────
-          send("embedding", "Synthesizing executive brief and core concept analysis...");
-          await updateDocStatus("Generating Summary", "AI summary generation in progress.");
+          send("embedding", "Performing intelligent document analysis — detecting structure, entities, and concepts...");
+          await updateDocStatus("Generating Summary", "AI semantic analysis and summary generation in progress.");
 
           const summaryResult = await generateSummary(cleanedText, file.name);
+          console.log(`[AI Engine] Document type detected: ${summaryResult.documentType}`);
+          console.log(`[AI Engine] Key insights: ${summaryResult.keyInsights.length}, Concepts: ${summaryResult.concepts.length}, Tech stack: ${summaryResult.technologyStack.length}`);
 
           const cleanTitle = file.name.replace(/\.[^/.]+$/, "");
           const summary = await prisma.summary.create({
             data: {
               documentId,
               title: summaryResult.title,
+              documentType: summaryResult.documentType,
               executiveBrief: summaryResult.executiveBrief,
+              keyInsights: JSON.stringify(summaryResult.keyInsights),
               concepts: JSON.stringify(summaryResult.concepts),
+              technologyStack: JSON.stringify(summaryResult.technologyStack),
+              revisionNotes: summaryResult.revisionNotes,
+              chapterSummaries: JSON.stringify(summaryResult.chapterSummaries),
             },
           });
 
           // ── Stage 5: Generating Quiz ──────────────────────
-          send("injecting", "Compiling adaptive quiz assessment from source material...");
-          await updateDocStatus("Generating Quiz", "AI quiz compilation in progress.");
+          send("injecting", "Generating multi-type contextual quiz — MCQ, True/False, Fill-in-the-Blanks, Scenario-based...");
+          await updateDocStatus("Generating Quiz", "AI contextual quiz compilation in progress.");
 
           const quizResult = await generateQuiz(cleanedText, file.name);
+          console.log(`[AI Engine] Quiz generated: ${quizResult.questions.length} questions across types: ${quizResult.questionTypes.join(", ")}`);
 
           const quiz = await prisma.quiz.create({
             data: {
               summaryId: summary.id,
               questions: JSON.stringify(quizResult.questions),
+              questionTypes: quizResult.questionTypes.join(","),
               difficulty: quizResult.difficulty,
             },
           });
