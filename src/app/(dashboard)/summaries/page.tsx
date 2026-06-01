@@ -7,6 +7,7 @@ import {
   BookOpen, Cpu, Lightbulb, GraduationCap,
   ChevronDown, ChevronRight, Code2, Brain,
   ClipboardList, ListChecks, Bookmark,
+  BookText, ScrollText, Sigma, Variable,
 } from "lucide-react";
 
 const springConfig = { stiffness: 120, damping: 18, mass: 0.8 };
@@ -22,7 +23,7 @@ const DOC_TYPE_CONFIG: Record<string, { color: string; icon: any }> = {
   "Study Material": { color: "#FACC15", icon: GraduationCap },
 };
 
-type SummaryTab = "brief" | "insights" | "concepts" | "techstack" | "revision" | "chapters";
+type SummaryTab = "brief" | "detailed" | "insights" | "takeaways" | "concepts" | "definitions" | "facts" | "formulas" | "techstack" | "revision" | "chapters";
 
 export default function Summaries() {
   const [summaries, setSummaries] = useState<any[]>([]);
@@ -82,8 +83,13 @@ export default function Summaries() {
   // Tab configuration
   const tabs: { key: SummaryTab; label: string; icon: any }[] = [
     { key: "brief", label: "Executive Brief", icon: FileText },
+    { key: "detailed", label: "Detailed Summary", icon: BookText },
     { key: "insights", label: "Key Insights", icon: Lightbulb },
+    { key: "takeaways", label: "Takeaways", icon: ScrollText },
     { key: "concepts", label: "Core Concepts", icon: Brain },
+    { key: "definitions", label: "Definitions", icon: BookOpen },
+    { key: "facts", label: "Facts", icon: Sigma },
+    { key: "formulas", label: "Formulas", icon: Variable },
     { key: "techstack", label: "Tech Stack", icon: Cpu },
     { key: "revision", label: "Revision Notes", icon: GraduationCap },
     { key: "chapters", label: "Chapters", icon: ListChecks },
@@ -94,8 +100,13 @@ export default function Summaries() {
     if (!activeSummary) return false;
     switch (tab) {
       case "brief": return !!activeSummary.executiveBrief;
+      case "detailed": return !!activeSummary.detailedSummary;
       case "insights": return safeJsonParse(activeSummary.keyInsights).length > 0;
+      case "takeaways": return safeJsonParse(activeSummary.keyTakeaways).length > 0;
       case "concepts": return safeJsonParse(activeSummary.concepts).length > 0;
+      case "definitions": return safeJsonParse(activeSummary.definitions).length > 0;
+      case "facts": return safeJsonParse(activeSummary.facts).length > 0;
+      case "formulas": return safeJsonParse(activeSummary.formulas).length > 0;
       case "techstack": return safeJsonParse(activeSummary.technologyStack).length > 0;
       case "revision": return !!activeSummary.revisionNotes;
       case "chapters": return safeJsonParse(activeSummary.chapterSummaries).length > 0;
@@ -312,6 +323,54 @@ export default function Summaries() {
                           </div>
                         </div>
                       )}
+
+                      {/* ── Detailed Summary ── */}
+                      {activeTab === "detailed" && (
+                        <div className="space-y-6">
+                          <div className="flex items-center gap-3 mb-6">
+                            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+                            <span className="text-xs font-semibold text-text-muted tracking-widest uppercase">
+                              Detailed Analysis
+                            </span>
+                            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/15 to-transparent" />
+                          </div>
+                          <div className="text-[15px] text-text-secondary leading-[1.85] font-light whitespace-pre-line">
+                            {activeSummary.detailedSummary}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ── Key Takeaways ── */}
+                      {activeTab === "takeaways" && (() => {
+                        const takeaways = safeJsonParse(activeSummary.keyTakeaways);
+                        return takeaways.length > 0 ? (
+                          <div className="space-y-6">
+                            <div className="flex items-center gap-3 mb-4">
+                              <ScrollText className="w-5 h-5 text-[#8B5CF6]" />
+                              <h3 className="text-xl font-display font-semibold text-text-primary">Key Takeaways</h3>
+                            </div>
+                            <div className="grid gap-3">
+                              {takeaways.map((item: string, i: number) => (
+                                <motion.div
+                                  key={i}
+                                  initial={{ opacity: 0, x: -10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: i * 0.05 }}
+                                  className="flex gap-3 p-4 rounded-2xl"
+                                  style={{ background: "rgba(11, 16, 32, 0.5)", border: "1px solid rgba(255,255,255,0.06)" }}
+                                >
+                                  <div className="mt-1 shrink-0">
+                                    <div className="w-2 h-2 rounded-full bg-[#8B5CF6] shadow-[0_0_8px_rgba(139,92,246,0.5)]" />
+                                  </div>
+                                  <p className="text-sm text-text-secondary leading-relaxed">{item}</p>
+                                </motion.div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-12 text-text-muted text-sm">No takeaways extracted for this document.</div>
+                        );
+                      })()}
 
                       {/* ── Key Insights ── */}
                       {activeTab === "insights" && (() => {
