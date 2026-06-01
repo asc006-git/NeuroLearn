@@ -53,33 +53,45 @@ export function FloatingAIAssistant() {
     scrollToBottom();
   }, [messages, isOpen, isTyping, scrollToBottom]);
 
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     if (!input.trim()) return;
 
     const userMsg: Message = { id: Date.now(), type: "user", text: input };
+    const currentInput = input;
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setIsTyping(true);
-    setAiState("thinking");
+    setAiState("analyzing");
 
-    // Simulate AI state transitions
-    setTimeout(() => setAiState("analyzing"), 500);
-    setTimeout(() => setAiState("synthesizing"), 1200);
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: currentInput,
+          history: messages.filter((m) => m.id !== 1).slice(-10).map((m) => ({
+            role: m.type,
+            text: m.text,
+          })),
+        }),
+      });
 
-    // Simulate streaming response
-    setTimeout(() => {
-      setIsTyping(false);
-      setAiState("idle");
+      setAiState("synthesizing");
+      const json = await res.json();
       setMessages((prev) => [
         ...prev,
-        {
-          id: Date.now(),
-          type: "ai",
-          text: "Analyzing context... I've cross-referenced your query with your uploaded documents and knowledge graph. Based on your learning patterns, I recommend focusing on the concepts you found challenging in your last quiz session.",
-        },
+        { id: Date.now(), type: "ai", text: json.reply || json.error || "I couldn't process that request." },
       ]);
-    }, 2000);
-  }, [input]);
+    } catch (err) {
+      setMessages((prev) => [
+        ...prev,
+        { id: Date.now(), type: "ai", text: "I'm having trouble connecting. Please try again." },
+      ]);
+    } finally {
+      setIsTyping(false);
+      setAiState("idle");
+    }
+  }, [input, messages]);
 
   const quickActions = [
     { label: "Review weak topics", icon: "📊" },
