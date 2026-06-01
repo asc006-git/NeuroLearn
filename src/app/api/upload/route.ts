@@ -169,13 +169,63 @@ export async function POST(req: NextRequest) {
               title: summaryResult.title,
               documentType: summaryResult.documentType,
               executiveBrief: summaryResult.executiveBrief,
+              detailedSummary: summaryResult.detailedSummary || summaryResult.executiveBrief,
               keyInsights: JSON.stringify(summaryResult.keyInsights),
+              keyTakeaways: JSON.stringify(summaryResult.keyTakeaways || []),
               concepts: JSON.stringify(summaryResult.concepts),
+              definitions: JSON.stringify(summaryResult.definitions || []),
+              facts: JSON.stringify(summaryResult.facts || []),
+              formulas: JSON.stringify(summaryResult.formulas || []),
               technologyStack: JSON.stringify(summaryResult.technologyStack),
               revisionNotes: summaryResult.revisionNotes,
               chapterSummaries: JSON.stringify(summaryResult.chapterSummaries),
             },
           });
+
+          // ── Stage 5: Populate Smart Notes ──────────────────
+          send("injecting", "Generating smart notes from document content...");
+          await updateDocStatus("Generating Notes", "AI notes compilation in progress.");
+
+          try {
+            const parsedConcepts = typeof summaryResult.concepts === "string"
+              ? JSON.parse(summaryResult.concepts) : summaryResult.concepts;
+            const parsedDefinitions = summaryResult.definitions
+              ? (typeof summaryResult.definitions === "string"
+                ? JSON.parse(summaryResult.definitions) : summaryResult.definitions)
+              : [];
+
+            if (Array.isArray(parsedConcepts)) {
+              for (const concept of parsedConcepts) {
+                const noteText = `${concept.explanation || ""}${concept.importance ? `\n\nImportance: ${concept.importance}` : ""}`;
+                if (concept.name && noteText.trim()) {
+                  await prisma.note.create({
+                    data: { userId: user.id, summaryId: summary.id, title: concept.name, content: noteText.trim(), type: "concept", source: "AI-generated", tags: "concept, ai-generated" },
+                  }).catch(() => {});
+                }
+              }
+            }
+
+            if (Array.isArray(parsedDefinitions)) {
+              for (const def of parsedDefinitions) {
+                const term = def.term || def.name;
+                const defText = def.definition || def.def;
+                if (term && defText) {
+                  await prisma.note.create({
+                    data: { userId: user.id, summaryId: summary.id, title: term, content: defText, type: "definition", source: "AI-generated", tags: "definition, ai-generated" },
+                  }).catch(() => {});
+                }
+              }
+            }
+
+            if (summaryResult.revisionNotes && summaryResult.revisionNotes.trim()) {
+              const title = `${summaryResult.title || "Document"} - Revision Notes`;
+              await prisma.note.create({
+                data: { userId: user.id, summaryId: summary.id, title, content: summaryResult.revisionNotes.trim(), type: "revision", source: "AI-generated", tags: "revision, ai-generated" },
+              }).catch(() => {});
+            }
+          } catch (e) {
+            console.error("[AI Engine] Note population error (non-fatal):", e);
+          }
 
           // ── Stage 5: Generating Quiz ──────────────────────
           send("injecting", "Generating multi-type contextual quiz — MCQ, True/False, Fill-in-the-Blanks, Scenario-based...");
