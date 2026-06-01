@@ -7,14 +7,14 @@ import { TrendingUp, Clock, BrainCircuit, Activity, Target } from "lucide-react"
 
 const springConfig = { stiffness: 120, damping: 18, mass: 0.8 };
 
-const fallbackActivityData = [
-  { name: "Mon", hours: 2, neuralActivity: 40 },
-  { name: "Tue", hours: 4, neuralActivity: 65 },
-  { name: "Wed", hours: 3, neuralActivity: 50 },
-  { name: "Thu", hours: 6, neuralActivity: 85 },
-  { name: "Fri", hours: 5, neuralActivity: 75 },
-  { name: "Sat", hours: 8, neuralActivity: 95 },
-  { name: "Sun", hours: 4, neuralActivity: 60 },
+const emptyActivityData = [
+  { name: "Mon", hours: 0, neuralActivity: 0 },
+  { name: "Tue", hours: 0, neuralActivity: 0 },
+  { name: "Wed", hours: 0, neuralActivity: 0 },
+  { name: "Thu", hours: 0, neuralActivity: 0 },
+  { name: "Fri", hours: 0, neuralActivity: 0 },
+  { name: "Sat", hours: 0, neuralActivity: 0 },
+  { name: "Sun", hours: 0, neuralActivity: 0 },
 ];
 
 const containerVariants = {
@@ -57,13 +57,9 @@ export default function Analytics() {
     { label: "Efficiency Delta", value: data?.metrics?.efficiencyDelta || "+0%", icon: TrendingUp, color: "#8B5CF6" },
   ];
   
-  const activityData = data?.activityData || fallbackActivityData;
+  const activityData = data?.activityData || emptyActivityData;
   
-  const subjectMastery = data?.subjectMastery || [
-    { topic: "Neuroscience", progress: 0, color: "#00F5D4" },
-    { topic: "Data Science", progress: 0, color: "#38BDF8" },
-    { topic: "Machine Learning", progress: 0, color: "#FF8A00" },
-  ];
+  const subjectMastery = data?.subjectMastery || [];
   
   const aiDiagnosis = data?.aiDiagnosis || "Upload your first document to begin cognitive analysis.";
 
