@@ -27,16 +27,6 @@ import { UploadArea } from "../../../components/Workspace/UploadArea";
 
 const springConfig = { stiffness: 120, damping: 18, mass: 0.8 };
 
-const performanceData = [
-  { name: "Mon", score: 65 },
-  { name: "Tue", score: 75 },
-  { name: "Wed", score: 70 },
-  { name: "Thu", score: 85 },
-  { name: "Fri", score: 80 },
-  { name: "Sat", score: 95 },
-  { name: "Sun", score: 90 },
-];
-
 const containerVariants = {
   hidden: { opacity: 0 },
   show: {
@@ -402,7 +392,7 @@ export default function Dashboard() {
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart
-                  data={performanceData}
+                  data={data?.performanceData || []}
                   margin={{ top: 10, right: 0, left: -20, bottom: 0 }}
                 >
                   <defs>
