@@ -7,7 +7,7 @@ import {
   BookOpen, Cpu, Lightbulb, GraduationCap,
   ChevronDown, ChevronRight, Code2, Brain,
   ClipboardList, ListChecks, Bookmark,
-  BookText, ScrollText, Sigma, Variable,
+  BookText, Sigma, ScrollText, Variable,
 } from "lucide-react";
 
 const springConfig = { stiffness: 120, damping: 18, mass: 0.8 };
@@ -446,6 +446,111 @@ export default function Summaries() {
                               ))}
                             </div>
                           </div>
+                        );
+                      })()}
+
+                      {/* ── Definitions ── */}
+                      {activeTab === "definitions" && (() => {
+                        const defs = safeJsonParse(activeSummary.definitions);
+                        return defs.length > 0 ? (
+                          <div className="space-y-6">
+                            <div className="flex items-center gap-3 mb-4">
+                              <BookOpen className="w-5 h-5 text-[#38BDF8]" />
+                              <h3 className="text-xl font-display font-semibold text-text-primary">Key Definitions</h3>
+                              <span className="text-xs text-text-ghost px-2 py-0.5 rounded-lg bg-white/5">{defs.length} terms</span>
+                            </div>
+                            <div className="grid gap-4">
+                              {defs.map((item: any, i: number) => (
+                                <motion.div
+                                  key={i}
+                                  initial={{ opacity: 0, y: 10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ delay: i * 0.06 }}
+                                  className="p-5 rounded-2xl"
+                                  style={{ background: "rgba(11, 16, 32, 0.5)", border: "1px solid rgba(255,255,255,0.06)" }}
+                                >
+                                  <h4 className="text-text-primary font-semibold mb-2 text-[15px] flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-[#38BDF8] shadow-[0_0_8px_rgba(56,189,248,0.6)]" />
+                                    {item.term || item.name}
+                                  </h4>
+                                  <p className="text-sm text-text-muted leading-relaxed pl-4">
+                                    {item.definition || item.def}
+                                  </p>
+                                </motion.div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-12 text-text-muted text-sm">No definitions extracted for this document.</div>
+                        );
+                      })()}
+
+                      {/* ── Facts ── */}
+                      {activeTab === "facts" && (() => {
+                        const factList = safeJsonParse(activeSummary.facts);
+                        return factList.length > 0 ? (
+                          <div className="space-y-6">
+                            <div className="flex items-center gap-3 mb-4">
+                              <Sigma className="w-5 h-5 text-[#FACC15]" />
+                              <h3 className="text-xl font-display font-semibold text-text-primary">Key Facts</h3>
+                              <span className="text-xs text-text-ghost px-2 py-0.5 rounded-lg bg-white/5">{factList.length} facts</span>
+                            </div>
+                            <div className="space-y-3">
+                              {factList.map((fact: string, i: number) => (
+                                <motion.div
+                                  key={i}
+                                  initial={{ opacity: 0, x: -10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: i * 0.05 }}
+                                  className="flex gap-3 p-4 rounded-2xl"
+                                  style={{ background: "rgba(11, 16, 32, 0.5)", border: "1px solid rgba(255,255,255,0.06)" }}
+                                >
+                                  <div className="mt-1 shrink-0">
+                                    <div className="w-2 h-2 rounded-full bg-[#FACC15] shadow-[0_0_8px_rgba(250,204,21,0.5)]" />
+                                  </div>
+                                  <p className="text-sm text-text-secondary leading-relaxed">{fact}</p>
+                                </motion.div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-12 text-text-muted text-sm">No factual data extracted for this document.</div>
+                        );
+                      })()}
+
+                      {/* ── Formulas ── */}
+                      {activeTab === "formulas" && (() => {
+                        const formulaList = safeJsonParse(activeSummary.formulas);
+                        return formulaList.length > 0 ? (
+                          <div className="space-y-6">
+                            <div className="flex items-center gap-3 mb-4">
+                              <Variable className="w-5 h-5 text-[#EC4899]" />
+                              <h3 className="text-xl font-display font-semibold text-text-primary">Formulas & Equations</h3>
+                              <span className="text-xs text-text-ghost px-2 py-0.5 rounded-lg bg-white/5">{formulaList.length} formulas</span>
+                            </div>
+                            <div className="grid gap-4">
+                              {formulaList.map((item: any, i: number) => (
+                                <motion.div
+                                  key={i}
+                                  initial={{ opacity: 0, y: 10 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  transition={{ delay: i * 0.06 }}
+                                  className="p-5 rounded-2xl"
+                                  style={{ background: "rgba(11, 16, 32, 0.5)", border: "1px solid rgba(255,255,255,0.06)" }}
+                                >
+                                  <h4 className="text-text-primary font-semibold mb-2 text-[15px]">{item.name || `Formula ${i + 1}`}</h4>
+                                  <div className="p-3 rounded-xl mb-3 font-mono text-sm" style={{ background: "rgba(236, 72, 153, 0.06)", border: "1px solid rgba(236, 72, 153, 0.15)", color: "#EC4899" }}>
+                                    {item.formula || item.equation}
+                                  </div>
+                                  {item.description && (
+                                    <p className="text-sm text-text-muted leading-relaxed">{item.description}</p>
+                                  )}
+                                </motion.div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-12 text-text-muted text-sm">No formulas or equations detected in this document.</div>
                         );
                       })()}
 
