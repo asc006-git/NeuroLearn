@@ -1184,21 +1184,24 @@ async function tryGeminiQuiz(text: string, filename: string): Promise<QuizResult
       body: JSON.stringify({
         contents: [{
           parts: [{
-            text: `You are an expert quiz designer. Based on the following document, generate a comprehensive quiz. 
+            text: `You are an expert quiz designer. Based on the following document, generate a comprehensive quiz.
 
 CRITICAL RULES:
 - Do NOT generate keyword-based questions
 - Generate questions from actual concepts, methodology, and context
 - Each question must test understanding, not just word recognition
 - Include a mix of difficulty levels and question types
+- Every question MUST include a "topic" field (the subject area it covers) and a "learningObjective" field (what the learner should be able to do after answering)
 
-Generate 8-12 questions across these types:
+Generate 10-14 questions across these types:
 1. MCQ (3-4 questions) — 4 options each, with explanations for why wrong options are wrong
 2. Fill in the Blanks (1-2 questions) — based on key definitions
 3. True/False (1-2 questions) — based on factual statements
 4. Match the Following (0-1 question) — match concepts to descriptions
 5. Short Answer (1 question) — requires brief analytical response
 6. Scenario-based (1 question) — applies concepts to a practical scenario
+7. Concept (1 question) — tests understanding of a core concept (has a "conceptName" field)
+8. Application (1 question) — asks the learner to apply knowledge to a new situation (has a "context" field)
 
 Example of a GOOD question:
 "Why is PostgreSQL used in this project?" → "To store users, documents, summaries, quizzes, analytics, and learning history" with explanation about relational storage needs.
@@ -1214,6 +1217,8 @@ Respond with ONLY raw JSON (no markdown fences):
       "options": ["Option A", "Option B", "Option C", "Option D"],
       "correctAnswer": "Exact text of correct option",
       "explanation": "Why this is correct...",
+      "topic": "Database Systems",
+      "learningObjective": "Understand the role of relational databases in web applications",
       "wrongOptionExplanations": {"Option B": "Why B is wrong...", "Option C": "Why C is wrong...", "Option D": "Why D is wrong..."}
     },
     {
@@ -1223,7 +1228,9 @@ Respond with ONLY raw JSON (no markdown fences):
       "question": "True or False: statement...",
       "options": ["True", "False"],
       "correctAnswer": "True",
-      "explanation": "Why..."
+      "explanation": "Why...",
+      "topic": "Core Concepts",
+      "learningObjective": "Verify understanding of factual statements"
     },
     {
       "id": "q3",
@@ -1231,7 +1238,9 @@ Respond with ONLY raw JSON (no markdown fences):
       "difficulty": "Medium",
       "question": "________ is used to...",
       "correctAnswer": "The answer",
-      "explanation": "Why..."
+      "explanation": "Why...",
+      "topic": "Terminology",
+      "learningObjective": "Recall key terminology from the document"
     },
     {
       "id": "q4",
@@ -1240,7 +1249,9 @@ Respond with ONLY raw JSON (no markdown fences):
       "question": "Match the following...",
       "matchPairs": [{"left": "Term", "right": "Definition"}],
       "correctAnswer": "Term → Definition, ...",
-      "explanation": "Why..."
+      "explanation": "Why...",
+      "topic": "Concept Mapping",
+      "learningObjective": "Associate terms with their correct definitions"
     },
     {
       "id": "q5",
@@ -1248,7 +1259,9 @@ Respond with ONLY raw JSON (no markdown fences):
       "difficulty": "Hard",
       "question": "Explain briefly...",
       "correctAnswer": "Expected answer...",
-      "explanation": "Key points to include..."
+      "explanation": "Key points to include...",
+      "topic": "Analysis",
+      "learningObjective": "Synthesize information from the document into a concise explanation"
     },
     {
       "id": "q6",
@@ -1257,11 +1270,35 @@ Respond with ONLY raw JSON (no markdown fences):
       "scenario": "Consider this situation...",
       "question": "What would you do...",
       "correctAnswer": "Expected approach...",
-      "explanation": "Based on the document..."
+      "explanation": "Based on the document...",
+      "topic": "Practical Application",
+      "learningObjective": "Apply document concepts to a real-world scenario"
+    },
+    {
+      "id": "q7",
+      "type": "Concept",
+      "difficulty": "Medium",
+      "question": "Explain the concept of...",
+      "correctAnswer": "The concept definition...",
+      "explanation": "Why this concept is important...",
+      "conceptName": "Name of the concept",
+      "topic": "Core Concepts",
+      "learningObjective": "Demonstrate understanding of a key concept from the document"
+    },
+    {
+      "id": "q8",
+      "type": "Application",
+      "difficulty": "Hard",
+      "question": "How would you apply...",
+      "context": "A new situation or problem that requires applying knowledge from the document",
+      "correctAnswer": "The expected approach...",
+      "explanation": "Why this approach works...",
+      "topic": "Knowledge Transfer",
+      "learningObjective": "Apply learned concepts to solve a novel problem"
     }
   ],
   "difficulty": "balanced",
-  "questionTypes": ["MCQ", "TrueFalse", "FillBlank", "Match", "ShortAnswer", "Scenario"]
+  "questionTypes": ["MCQ", "TrueFalse", "FillBlank", "Match", "ShortAnswer", "Scenario", "Concept", "Application"]
 }
 
 Document: "${cleanName}"
