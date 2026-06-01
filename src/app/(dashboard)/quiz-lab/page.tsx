@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2, XCircle, BrainCircuit, ChevronRight, Trophy, Flame,
   Lightbulb, Zap, Loader2, Play, BookOpen, PenLine, ToggleLeft,
-  Link2, MessageSquare, ShieldQuestion, ArrowRight,
+  Link2, MessageSquare, ShieldQuestion, ArrowRight, Sparkles,
 } from "lucide-react";
 
 const springConfig = { stiffness: 120, damping: 18, mass: 0.8 };
@@ -23,6 +23,8 @@ const TYPE_CONFIG: Record<string, { label: string; icon: any; color: string }> =
   Match: { label: "Match the Following", icon: Link2, color: "#8B5CF6" },
   ShortAnswer: { label: "Short Answer", icon: MessageSquare, color: "#FF8A00" },
   Scenario: { label: "Scenario-Based", icon: ShieldQuestion, color: "#F472B6" },
+  Concept: { label: "Concept", icon: BookOpen, color: "#38BDF8" },
+  Application: { label: "Application", icon: Zap, color: "#EC4899" },
 };
 
 function TimerRing({ timeLeft, total, isSubmitted }: { timeLeft: number; total: number; isSubmitted: boolean }) {
@@ -583,6 +585,92 @@ export default function QuizLab() {
     </div>
   );
 
+  // ─── Render Concept ───
+  const renderConcept = () => (
+    <div className="space-y-4">
+      {question.conceptName && (
+        <div className="p-4 rounded-xl mb-2" style={{ background: "rgba(56, 189, 248, 0.04)", border: "1px solid rgba(56, 189, 248, 0.15)" }}>
+          <span className="text-xs font-bold text-[#38BDF8] uppercase tracking-wider">Concept: {question.conceptName}</span>
+        </div>
+      )}
+      <textarea
+        value={shortAnswer}
+        onChange={(e) => !isSubmitted && setShortAnswer(e.target.value)}
+        placeholder="Explain the concept in your own words..."
+        disabled={isSubmitted}
+        rows={4}
+        className="w-full p-5 rounded-2xl text-sm text-text-primary placeholder:text-text-ghost focus:outline-none resize-none transition-all leading-relaxed"
+        style={{
+          background: "rgba(11, 16, 32, 0.6)",
+          border: isSubmitted
+            ? isCorrect ? "2px solid rgba(0, 245, 212, 0.5)" : "2px solid rgba(239, 68, 68, 0.5)"
+            : shortAnswer.length > 10 ? "2px solid rgba(56,189,248,0.3)" : "2px solid rgba(255,255,255,0.08)",
+        }}
+      />
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-text-ghost">{shortAnswer.length} characters</span>
+        {isSubmitted && (
+          <span className={`text-xs font-semibold ${isCorrect ? "text-neural-cyan" : "text-danger"}`}>
+            {isCorrect ? "Concept understood ✓" : "Key aspects missing"}
+          </span>
+        )}
+      </div>
+      {isSubmitted && (
+        <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="p-4 rounded-xl" style={{ background: "rgba(56, 189, 248, 0.04)", border: "1px solid rgba(56, 189, 248, 0.15)" }}>
+          <p className="text-xs font-semibold text-[#38BDF8] mb-1">Expected Understanding:</p>
+          <p className="text-sm text-text-secondary leading-relaxed">{question.correctAnswer}</p>
+        </motion.div>
+      )}
+    </div>
+  );
+
+  // ─── Render Application ───
+  const renderApplication = () => (
+    <div className="space-y-6">
+      {question.context && (
+        <div className="p-5 rounded-2xl" style={{ background: "rgba(236, 72, 153, 0.04)", border: "1px solid rgba(236, 72, 153, 0.15)" }}>
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="w-4 h-4 text-[#EC4899]" />
+            <span className="text-xs font-bold text-[#EC4899] uppercase tracking-wider">Application Context</span>
+          </div>
+          <p className="text-sm text-text-secondary leading-relaxed">{question.context}</p>
+        </div>
+      )}
+      {question.options ? renderMCQOptions() : (
+        <div className="space-y-4">
+          <textarea
+            value={shortAnswer}
+            onChange={(e) => !isSubmitted && setShortAnswer(e.target.value)}
+            placeholder="Describe how you would apply this knowledge..."
+            disabled={isSubmitted}
+            rows={4}
+            className="w-full p-5 rounded-2xl text-sm text-text-primary placeholder:text-text-ghost focus:outline-none resize-none transition-all leading-relaxed"
+            style={{
+              background: "rgba(11, 16, 32, 0.6)",
+              border: isSubmitted
+                ? isCorrect ? "2px solid rgba(0, 245, 212, 0.5)" : "2px solid rgba(239, 68, 68, 0.5)"
+                : shortAnswer.length > 10 ? "2px solid rgba(236,72,153,0.3)" : "2px solid rgba(255,255,255,0.08)",
+            }}
+          />
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-text-ghost">{shortAnswer.length} characters</span>
+            {isSubmitted && (
+              <span className={`text-xs font-semibold ${isCorrect ? "text-neural-cyan" : "text-danger"}`}>
+                {isCorrect ? "Approach valid ✓" : "Key reasoning missing"}
+              </span>
+            )}
+          </div>
+          {isSubmitted && (
+            <motion.div initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="p-4 rounded-xl" style={{ background: "rgba(236, 72, 153, 0.04)", border: "1px solid rgba(236, 72, 153, 0.15)" }}>
+              <p className="text-xs font-semibold text-[#EC4899] mb-1">Expected Approach:</p>
+              <p className="text-sm text-text-secondary leading-relaxed">{question.correctAnswer}</p>
+            </motion.div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   // ─── Render question body based on type ───
   const renderQuestionBody = () => {
     switch (qType) {
@@ -592,6 +680,8 @@ export default function QuizLab() {
       case "Match": return renderMatch();
       case "ShortAnswer": return renderShortAnswer();
       case "Scenario": return renderScenario();
+      case "Concept": return renderConcept();
+      case "Application": return renderApplication();
       default: return renderMCQOptions(); // fallback
     }
   };
