@@ -102,8 +102,13 @@ model Summary {
   title            String
   documentType     String            @default("Study Material") // Research Paper, Project Report, Notes, Technical Document, Book Chapter, Study Material
   executiveBrief   String            @db.Text
+  detailedSummary  String?           @db.Text // Expanded multi-paragraph analysis
   keyInsights      String?           @db.Text // Serialized JSON array of insight strings
+  keyTakeaways     String?           @db.Text // Serialized JSON array of takeaway points
   concepts         String            @db.Text // Serialized JSON array of concept objects {name, explanation, importance}
+  definitions      String?           @db.Text // Serialized JSON array of {term, definition} objects
+  facts            String?           @db.Text // Serialized JSON array of factual statements
+  formulas         String?           @db.Text // Serialized JSON array of {name, formula, description} objects
   technologyStack  String?           @db.Text // Serialized JSON array of detected tech {name, category, context}
   revisionNotes    String?           @db.Text // Exam-oriented important points
   chapterSummaries String?           @db.Text // Serialized JSON array of {heading, summary} objects
@@ -116,7 +121,7 @@ model Quiz {
   id            String            @id @default(uuid())
   summaryId     String
   questions     String            @db.Text // Serialized JSON array of question cards
-  questionTypes String            @default("MCQ") // Comma-separated: MCQ, FillBlank, TrueFalse, Match, ShortAnswer, Scenario
+  questionTypes String            @default("MCQ") // Comma-separated: MCQ, FillBlank, TrueFalse, Match, ShortAnswer, Scenario, Concept, Application
   difficulty    String            @default("balanced")
   score         Int               @default(0)
   createdAt     DateTime          @default(now())
