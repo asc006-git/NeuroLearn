@@ -64,10 +64,10 @@ export async function GET(req: NextRequest) {
     const recentActivity = user.sessions.map((s) => ({
       id: s.id,
       type: s.score > 0 ? "quiz" : "document",
-      topic: s.title,
+      topic: s.title || "Untitled Session",
       description: s.score > 0
-        ? `Completed intelligence assessment with ${s.score}% accuracy.`
-        : `Ingested new knowledge source and mapped semantic vector nodes.`,
+        ? `Achieved ${s.score}% on assessment for "${s.title || "study session"}"`
+        : `Reviewed "${s.title || "learning materials"}"`,
       timestamp: s.createdAt.toISOString(),
       duration: s.duration,
     }));
