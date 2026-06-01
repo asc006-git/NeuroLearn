@@ -76,6 +76,12 @@ export async function POST(req: NextRequest) {
 
     const docTitle = quiz.summary.document.title.replace(/\.[^/.]+$/, "");
 
+    // Update the Quiz record with the score
+    await prisma.quiz.update({
+      where: { id: quizId },
+      data: { score },
+    });
+
     // Record learning session using actual schema fields
     const learningSession = await prisma.learningSession.create({
       data: {

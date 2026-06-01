@@ -61,7 +61,12 @@ export default function SmartNotes() {
     }
   };
 
-  useEffect(() => { fetchNotes(); }, [filterType]);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchNotes();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [filterType, searchQuery]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
     // Build activity data from sessions, fill gaps with empty days
     const sessionDays = user.sessions.slice(0, 14).map((s) => ({
       name: new Date(s.createdAt).toLocaleDateString("en-US", { weekday: "short" }),
-      hours: parseFloat((parseInt(s.duration || "0") / 60).toFixed(1)) || 0.5,
+      hours: Math.max(0.1, parseFloat((parseInt(s.duration || "0") / 60).toFixed(1))),
       neuralActivity: s.score || 40,
     }));
     const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
       const quizCount = doc.summaries.reduce((acc, s) => acc + s.quizzes.length, 0);
       const progress = summaryCount > 0 ? Math.min(60 + summaryCount * 10 + quizCount * 5, 98) : 10;
       return {
-        topic: doc.name?.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ") || `Document ${i + 1}`,
+        topic: doc.title?.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ") || `Document ${i + 1}`,
         progress,
         color: docColors[i % docColors.length],
       };

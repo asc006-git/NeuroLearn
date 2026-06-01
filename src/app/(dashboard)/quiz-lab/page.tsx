@@ -78,6 +78,7 @@ export default function QuizLab() {
 
   // High-score submitting state
   const [submittingScore, setSubmittingScore] = useState(false);
+  const [finalAccuracy, setFinalAccuracy] = useState(0);
 
   const burstDistances = useMemo(() => {
     return [...Array(16)].map(() => 80 + Math.random() * 120);
@@ -258,13 +259,14 @@ export default function QuizLab() {
           const pts = q.type === "Scenario" || q.type === "Application" ? 200 : q.type === "ShortAnswer" || q.type === "Concept" ? 150 : 100;
           return acc + pts;
         }, 0);
-        const finalAccuracy = Math.round((score / maxScore) * 100) || 0;
+        const accuracy = Math.round((score / maxScore) * 100) || 0;
+        setFinalAccuracy(accuracy);
         await fetch("/api/quizzes", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             quizId: selectedQuiz.id,
-            score: finalAccuracy,
+            score: accuracy,
             duration: questions.length,
           }),
         });
@@ -1031,14 +1033,18 @@ export default function QuizLab() {
               Excellent work! You completed the multi-format assessment for <span className="text-text-primary font-semibold">{selectedQuiz?.summaryTitle}</span>.
             </p>
 
-            <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-3 gap-4 mb-6">
               <div className="p-4 rounded-2xl bg-void/50 border border-white/5">
-                <p className="text-[10px] text-text-ghost uppercase font-bold tracking-wider mb-1">Final Score</p>
-                <p className="text-2xl font-display font-bold text-neural-cyan">{score}</p>
+                <p className="text-[10px] text-text-ghost uppercase font-bold tracking-wider mb-1">Accuracy</p>
+                <p className="text-2xl font-display font-bold text-neural-cyan">{finalAccuracy}%</p>
+              </div>
+              <div className="p-4 rounded-2xl bg-void/50 border border-white/5">
+                <p className="text-[10px] text-text-ghost uppercase font-bold tracking-wider mb-1">Points</p>
+                <p className="text-2xl font-display font-bold text-[#FF8A00]">{score}</p>
               </div>
               <div className="p-4 rounded-2xl bg-void/50 border border-white/5">
                 <p className="text-[10px] text-text-ghost uppercase font-bold tracking-wider mb-1">Questions</p>
-                <p className="text-2xl font-display font-bold text-[#FF8A00]">{questions.length}</p>
+                <p className="text-2xl font-display font-bold text-[#38BDF8]">{questions.length}</p>
               </div>
             </div>
 

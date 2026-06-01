@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
 
     for (const doc of user.documents.slice(0, 10)) {
       for (const summary of doc.summaries) {
-        contextParts.push(`Document: ${summary.title || doc.name}`);
+        contextParts.push(`Document: ${summary.title || doc.title}`);
         if (summary.executiveBrief) contextParts.push(`Summary: ${summary.executiveBrief.substring(0, 1000)}`);
         if (summary.keyInsights) {
           try {
