@@ -26,17 +26,23 @@ export interface ChapterSummary {
 
 export interface QuizQuestion {
   id: string;
-  type: "MCQ" | "FillBlank" | "TrueFalse" | "Match" | "ShortAnswer" | "Scenario";
+  type: "MCQ" | "FillBlank" | "TrueFalse" | "Match" | "ShortAnswer" | "Scenario" | "Concept" | "Application";
   difficulty: "Easy" | "Medium" | "Hard";
   question: string;
   options?: string[];
   correctAnswer: string;
   explanation: string;
+  topic?: string;
+  learningObjective?: string;
   wrongOptionExplanations?: Record<string, string>;
   // For Match type
   matchPairs?: { left: string; right: string }[];
   // For Scenario type
   scenario?: string;
+  // For Concept type
+  conceptName?: string;
+  // For Application type
+  context?: string;
 }
 
 export interface SummaryResult {
@@ -766,6 +772,8 @@ function generateLocalQuiz(text: string, filename: string): QuizResult {
         options: allOptions,
         correctAnswer,
         explanation: `The document states: "${context.substring(0, 200)}${context.length > 200 ? "..." : ""}"`,
+        topic: capitalize(entity.name),
+        learningObjective: `Understand the purpose of ${entity.name} in the documented system`,
         wrongOptionExplanations: wrongExplanations,
       });
     } else {
@@ -799,6 +807,8 @@ function generateLocalQuiz(text: string, filename: string): QuizResult {
         options: allOptions,
         correctAnswer,
         explanation: `${capitalize(entity.name)} is explicitly mentioned in the document. Context: "${context.substring(0, 200)}${context.length > 200 ? "..." : ""}"`,
+        topic: "Document Concepts",
+        learningObjective: "Identify key concepts discussed in the document",
         wrongOptionExplanations: wrongExplanations,
       });
     }
@@ -827,6 +837,8 @@ function generateLocalQuiz(text: string, filename: string): QuizResult {
         options: ["True", "False"],
         correctAnswer: "True",
         explanation: `This statement is TRUE. The document explicitly states: "${sentence}"`,
+        topic: "Factual Understanding",
+        learningObjective: "Verify understanding of factual statements from the document",
       });
     } else {
       // Create a false statement by negating or altering the original
@@ -839,6 +851,8 @@ function generateLocalQuiz(text: string, filename: string): QuizResult {
         options: ["True", "False"],
         correctAnswer: "False",
         explanation: `This statement is FALSE. The document actually states: "${sentence}"`,
+        topic: "Factual Understanding",
+        learningObjective: "Distinguish true statements from false ones based on document content",
       });
     }
   }
@@ -870,6 +884,8 @@ function generateLocalQuiz(text: string, filename: string): QuizResult {
         question: `Fill in the blank: ${blanked}`,
         correctAnswer: entityInSentence.name,
         explanation: `The complete sentence reads: "${sentence}"`,
+        topic: "Terminology",
+        learningObjective: "Recall key terminology from the document",
       });
     }
   }
@@ -884,6 +900,8 @@ function generateLocalQuiz(text: string, filename: string): QuizResult {
       question: `List at least 3 technologies or tools mentioned in "${cleanName}" and briefly describe their role.`,
       correctAnswer: techStack.slice(0, 5).map((t) => `${t.name} — ${t.category}: ${t.context.substring(0, 80)}`).join("; "),
       explanation: `The document references the following technologies: ${techNames.join(", ")}. Each plays a specific role in the system described.`,
+      topic: "Knowledge Transfer",
+      learningObjective: "Synthesize information from the document into a concise list",
     });
   }
 
@@ -906,6 +924,8 @@ function generateLocalQuiz(text: string, filename: string): QuizResult {
         question: `Based on the approach described in the document, what would be the most critical component or step when implementing ${scenarioTopic}? Explain why.`,
         correctAnswer: `The document emphasizes: ${scenarioSentences[0] || "the systematic approach described in the methodology section"}. This is critical because it forms the foundation of the implementation described.`,
         explanation: `The "${scenarioSection.heading}" section describes: ${scenarioText.substring(0, 250)}. Understanding this is key to applying the document's methodology.`,
+        topic: "Practical Application",
+        learningObjective: "Apply document concepts to a real-world implementation scenario",
       });
     }
   }
@@ -925,6 +945,8 @@ function generateLocalQuiz(text: string, filename: string): QuizResult {
       matchPairs,
       correctAnswer: matchPairs.map((p) => `${p.left} → ${p.right}`).join(", "),
       explanation: `These technologies are used in the system described in "${cleanName}": ${matchPairs.map((p) => `${p.left} serves as the ${p.right.toLowerCase()}`).join("; ")}.`,
+      topic: "Concept Mapping",
+      learningObjective: "Associate technologies with their correct categories",
     });
   }
 
@@ -936,24 +958,26 @@ function generateLocalQuiz(text: string, filename: string): QuizResult {
     const mainTopic = mainEntity ? capitalize(mainEntity.name) : cleanName;
 
     questions.push({
-      id: `q${qId++}`,
-      type: "MCQ",
-      difficulty: "Easy",
-      question: `What is the primary focus of "${cleanName}"?`,
-      options: [
-        `${mainTopic} and its applications in the described context`,
-        "An unrelated historical analysis with no practical applications",
-        "Abstract theoretical proofs without implementation details",
-        "Random data collection without structured analysis",
-      ],
-      correctAnswer: `${mainTopic} and its applications in the described context`,
-      explanation: `The document primarily focuses on ${mainTopic}, as evidenced by: "${topSentence.substring(0, 150)}..."`,
-      wrongOptionExplanations: {
-        "An unrelated historical analysis with no practical applications": "The document focuses on practical, applied content rather than historical analysis.",
-        "Abstract theoretical proofs without implementation details": "The document contains concrete implementation details and practical methodology.",
-        "Random data collection without structured analysis": "The document presents structured, organized analysis of its subject matter.",
-      },
-    });
+        id: `q${qId++}`,
+        type: "MCQ",
+        difficulty: "Easy",
+        question: `What is the primary focus of "${cleanName}"?`,
+        options: [
+          `${mainTopic} and its applications in the described context`,
+          "An unrelated historical analysis with no practical applications",
+          "Abstract theoretical proofs without implementation details",
+          "Random data collection without structured analysis",
+        ],
+        correctAnswer: `${mainTopic} and its applications in the described context`,
+        explanation: `The document primarily focuses on ${mainTopic}, as evidenced by: "${topSentence.substring(0, 150)}..."`,
+        topic: "Overall Comprehension",
+        learningObjective: "Identify the primary focus of the document",
+        wrongOptionExplanations: {
+          "An unrelated historical analysis with no practical applications": "The document focuses on practical, applied content rather than historical analysis.",
+          "Abstract theoretical proofs without implementation details": "The document contains concrete implementation details and practical methodology.",
+          "Random data collection without structured analysis": "The document presents structured, organized analysis of its subject matter.",
+        },
+      });
   }
 
   // Collect all question types used
