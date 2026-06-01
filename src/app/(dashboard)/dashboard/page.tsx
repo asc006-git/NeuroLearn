@@ -522,54 +522,27 @@ export default function Dashboard() {
 
           {/* Smart Suggestion */}
           <div className="relative rounded-[24px] p-px overflow-hidden group">
-            {/* Animated gradient border */}
-            <div
-              className="absolute inset-0 rounded-[24px] opacity-40 group-hover:opacity-80 transition-opacity duration-700"
-              style={{
-                background: "linear-gradient(135deg, rgba(0, 245, 212, 0.4), rgba(255, 138, 0, 0.3), rgba(56, 189, 248, 0.4))",
-              }}
-            />
-
-            <div
-              className="relative rounded-[23px] p-6 h-full"
-              style={{
-                background: "rgba(5, 8, 22, 0.9)",
-                backdropFilter: "blur(20px)",
-              }}
-            >
+            <div className="absolute inset-0 rounded-[24px] opacity-40 group-hover:opacity-80 transition-opacity duration-700"
+              style={{ background: "linear-gradient(135deg, rgba(0, 245, 212, 0.4), rgba(255, 138, 0, 0.3), rgba(56, 189, 248, 0.4))" }} />
+            <div className="relative rounded-[23px] p-6 h-full"
+              style={{ background: "rgba(5, 8, 22, 0.9)", backdropFilter: "blur(20px)" }}>
               <div className="flex items-center gap-3 mb-4">
-                <div
-                  className="p-2 rounded-xl"
-                  style={{
-                    background: "rgba(0, 245, 212, 0.1)",
-                    border: "1px solid rgba(0, 245, 212, 0.2)",
-                  }}
-                >
+                <div className="p-2 rounded-xl" style={{ background: "rgba(0, 245, 212, 0.1)", border: "1px solid rgba(0, 245, 212, 0.2)" }}>
                   <Sparkles className="w-4 h-4 text-neural-cyan" />
                 </div>
-                <h3 className="text-lg font-display font-semibold text-text-primary">
-                  Smart Suggestion
-                </h3>
+                <h3 className="text-lg font-display font-semibold text-text-primary">Smart Suggestion</h3>
               </div>
               <p className="text-sm text-text-secondary mb-6 leading-relaxed">
-                Based on your neural mapping in{" "}
-                <span className="text-text-primary font-medium">
-                  Cellular Biology
-                </span>
-                , reviewing the{" "}
-                <span className="text-neural-cyan">
-                  mitochondria function notes
-                </span>{" "}
-                will solidify your retention.
+                {data?.recentActivity?.[0]
+                  ? `Based on your recent activity in "${data.recentActivity[0].topic}", taking a practice quiz or reviewing related notes will help reinforce your understanding.`
+                  : metrics.documentsCount > 0
+                    ? `You have ${metrics.documentsCount} document${metrics.documentsCount > 1 ? "s" : ""} uploaded. Try generating a quiz or reviewing your smart notes to test your knowledge.`
+                    : "Upload your first document to start building your learning map."}
               </p>
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                transition={springConfig}
+              <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} transition={springConfig}
                 className="w-full text-text-primary text-sm font-medium py-3 rounded-xl transition-all border border-white/10 hover:border-neural-cyan/30 flex items-center justify-center gap-2 group/btn"
-                style={{ background: "rgba(11, 16, 32, 0.8)" }}
-              >
-                Initiate Review
+                style={{ background: "rgba(11, 16, 32, 0.8)" }}>
+                {data?.recentActivity?.[0] ? "Continue Learning" : "Get Started"}
                 <ChevronRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
               </motion.button>
             </div>
