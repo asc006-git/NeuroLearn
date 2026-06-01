@@ -14,7 +14,7 @@ model User {
   email          String            @unique
   emailVerified  DateTime?
   hashedPassword String?
-  avatar         String?
+  avatar         String? // @deprecated: use `image` instead
   image          String?
   authProvider   String            @default("credentials")
   createdAt      DateTime          @default(now())
@@ -72,7 +72,6 @@ model Document {
   title            String
   fileUrl          String
   extractedText    String              @db.Text
-  embeddings       String?             @db.Text // Serialized float array of semantic features
   processingStatus String              @default("Uploading") // Uploading, Extracting, Processing, Generating Summary, Generating Quiz, Completed, Failed
   uploadedAt       DateTime            @default(now())
   user             User                @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -163,6 +162,7 @@ model KnowledgeMap {
   connections String   @db.Text // Serialized int array e.g., "[2, 3]"
   x           Float
   y           Float
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Analytics {
