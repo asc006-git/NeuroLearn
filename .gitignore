@@ -44,3 +44,6 @@ session-*.md
 *.db
 *.sqlite
 
+# Build artifacts
+tsconfig.tsbuildinfo
+
