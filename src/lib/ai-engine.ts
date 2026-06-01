@@ -43,8 +43,13 @@ export interface SummaryResult {
   title: string;
   documentType: string;
   executiveBrief: string;
+  detailedSummary: string;
   keyInsights: string[];
+  keyTakeaways: string[];
   concepts: ConceptItem[];
+  definitions: { term: string; definition: string }[];
+  facts: string[];
+  formulas: { name: string; formula: string; description: string }[];
   technologyStack: TechStackItem[];
   revisionNotes: string;
   chapterSummaries: ChapterSummary[];
@@ -567,6 +572,89 @@ function generateLocalSummary(text: string, filename: string): SummaryResult {
     }
   }
 
+  // ── Key Takeaways ──
+  const keyTakeaways = keyInsights.slice(0, 5).map((insight) =>
+    insight.length > 120 ? insight.substring(0, 117) + "..." : insight
+  );
+
+  // ── Detailed Summary ──
+  const topBriefSentences = scoredSentences.slice(0, 25)
+    .filter((s) => s.score >= 2)
+    .map((s) => s.text);
+  const detailedSummary = topBriefSentences.length > 0
+    ? `This document provides a comprehensive exploration of its subject matter, organized into ${sections.length} major sections. ${topBriefSentences.slice(0, 8).join(" ")}\n\n${topBriefSentences.length > 8 ? topBriefSentences.slice(8, 16).join(" ") : ""}\n\n${topBriefSentences.length > 16 ? topBriefSentences.slice(16).join(" ") : ""}`
+    : executiveBrief;
+
+  // ── Definitions ──
+  const definitions: { term: string; definition: string }[] = [];
+  const defPatternGlobal = /([A-Z][a-zA-Z\s]{2,30})\s+(?:is\s+(?:a|an|the)|refers?\s+to|is\s+defined\s+as|can\s+be\s+described\s+as|represents?|means)\s+([^.]{10,200})\./gi;
+  let defMatch: RegExpExecArray | null;
+  const usedTerms = new Set<string>();
+  while ((defMatch = defPatternGlobal.exec(text)) !== null && definitions.length < 10) {
+    const term = defMatch[1].trim();
+    const def = defMatch[2].trim();
+    const key = term.toLowerCase();
+    if (!usedTerms.has(key) && term.length > 2 && def.length > 15) {
+      usedTerms.add(key);
+      definitions.push({ term, definition: def });
+    }
+  }
+  for (const entity of entities.slice(0, 5)) {
+    const defCtx = entity.contexts.find((c) =>
+      /\b(?:is\s+(?:a|an|the)|refers?\s+to|provides?|enables?|used\s+(?:to|for))\b/i.test(c)
+    );
+    if (defCtx && !usedTerms.has(entity.name.toLowerCase()) && definitions.length < 10) {
+      usedTerms.add(entity.name.toLowerCase());
+      definitions.push({
+        term: capitalize(entity.name),
+        definition: defCtx.length > 200 ? defCtx.substring(0, 197) + "..." : defCtx,
+      });
+    }
+  }
+
+  // ── Facts ──
+  const facts: string[] = [];
+  const factCandidates = scoredSentences
+    .filter((s) => s.score >= 3.5 && /\d/.test(s.text))
+    .slice(0, 8);
+  for (const fs of factCandidates) {
+    const clean = fs.text.length > 180 ? fs.text.substring(0, 177) + "..." : fs.text;
+    if (!facts.some((f) => f.substring(0, 40) === clean.substring(0, 40))) {
+      facts.push(clean);
+    }
+  }
+  for (const entity of entities.slice(0, 3)) {
+    if (entity.contexts.length > 0 && facts.length < 10) {
+      const fact = `${capitalize(entity.name)}: ${entity.contexts[0].length > 150 ? entity.contexts[0].substring(0, 147) + "..." : entity.contexts[0]}`;
+      if (!facts.some((f) => f.includes(entity.name))) {
+        facts.push(fact);
+      }
+    }
+  }
+
+  // ── Formulas ──
+  const formulas: { name: string; formula: string; description: string }[] = [];
+  const formulaPatterns = [
+    /([A-Za-z]+)\s*[=:]\s*[A-Za-z0-9_+\-*/().^\s=]+/g,
+    /(?:equation|formula|expression)\s*(?:is|:)\s*([^.\n]{5,100})/gi,
+  ];
+  const usedFormulas = new Set<string>();
+  for (const pattern of formulaPatterns) {
+    const regex = new RegExp(pattern.source, "gi");
+    let fm: RegExpExecArray | null;
+    while ((fm = regex.exec(text)) !== null && formulas.length < 5) {
+      const formulaText = fm[1] || fm[0];
+      if (formulaText.length > 5 && formulaText.length < 100 && !usedFormulas.has(formulaText.substring(0, 20))) {
+        usedFormulas.add(formulaText.substring(0, 20));
+        formulas.push({
+          name: `Formula ${formulas.length + 1}`,
+          formula: formulaText.trim().substring(0, 80),
+          description: `Mathematical relationship found in the document context.`,
+        });
+      }
+    }
+  }
+
   // ── Revision Notes ──
   const revisionPoints: string[] = [];
   // Definitions
@@ -614,8 +702,13 @@ function generateLocalSummary(text: string, filename: string): SummaryResult {
     title,
     documentType,
     executiveBrief,
+    detailedSummary,
     keyInsights,
+    keyTakeaways,
     concepts,
+    definitions,
+    facts,
+    formulas,
     technologyStack: techStack,
     revisionNotes,
     chapterSummaries,
@@ -982,8 +1075,13 @@ ${truncatedText}`
       title: parsed.title || `${cleanName}`,
       documentType: parsed.documentType || "Study Material",
       executiveBrief: parsed.executiveBrief,
+      detailedSummary: parsed.detailedSummary || parsed.executiveBrief || "",
       keyInsights: parsed.keyInsights || [],
+      keyTakeaways: parsed.keyTakeaways || [],
       concepts: parsed.concepts || [],
+      definitions: parsed.definitions || [],
+      facts: parsed.facts || [],
+      formulas: parsed.formulas || [],
       technologyStack: parsed.technologyStack || [],
       revisionNotes: parsed.revisionNotes || "",
       chapterSummaries: parsed.chapterSummaries || [],
