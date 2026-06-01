@@ -94,9 +94,9 @@ export function FloatingAIAssistant() {
   }, [input, messages]);
 
   const quickActions = [
-    { label: "Review weak topics", icon: "📊" },
-    { label: "Generate quiz", icon: "🧪" },
-    { label: "Summarize notes", icon: "📝" },
+    { label: "Review weak topics", icon: "📊", prompt: "What are my weakest topics based on my quiz scores?" },
+    { label: "Generate quiz", icon: "🧪", prompt: "Generate a practice quiz for me based on my documents." },
+    { label: "Summarize notes", icon: "📝", prompt: "Summarize my recent notes and key concepts." },
   ];
 
   const stateLabels: Record<AIState, string | null> = {
@@ -261,7 +261,10 @@ export function FloatingAIAssistant() {
               {quickActions.map((action, i) => (
                 <button
                   key={i}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-text-muted hover:text-text-primary transition-colors whitespace-nowrap"
+                  onClick={() => {
+                    setInput(action.prompt);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-text-muted hover:text-text-primary transition-colors whitespace-nowrap cursor-pointer"
                   style={{
                     background: "rgba(11, 16, 32, 0.5)",
                     border: "1px solid rgba(255,255,255,0.06)",
