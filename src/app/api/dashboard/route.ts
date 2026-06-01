@@ -48,6 +48,19 @@ export async function GET(req: NextRequest) {
       retentionRating: 0,
     };
 
+    // Compute quiz score trend for performance chart
+    const recentSessions = user.sessions.slice(0, 14).reverse();
+    const performanceData = recentSessions.map((s) => ({
+      name: new Date(s.createdAt).toLocaleDateString("en-US", { weekday: "short" }),
+      score: s.score || 0,
+    }));
+    // Fill gaps to ensure at least 7 data points
+    const dayOrder = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const filledPerformance = dayOrder.map((day) => {
+      const match = performanceData.find((p) => p.name === day);
+      return match || { name: day, score: 0 };
+    });
+
     const recentActivity = user.sessions.map((s) => ({
       id: s.id,
       type: s.score > 0 ? "quiz" : "document",
@@ -76,6 +89,7 @@ export async function GET(req: NextRequest) {
           sessionsCount: analytics.quizzesTaken,
         },
         recentActivity,
+        performanceData: filledPerformance,
       },
     });
   } catch (error: any) {
