@@ -38,9 +38,22 @@ export async function GET(req: NextRequest) {
     const totalDocs = user.documents.length;
     let totalSummaries = 0;
     let totalQuizzes = 0;
+    let totalQuizScore = 0;
+    let conceptsExtracted = 0;
+    const docColors = ["#00F5D4", "#38BDF8", "#FF8A00", "#8B5CF6"];
+
     user.documents.forEach((doc) => {
       totalSummaries += doc.summaries.length;
-      doc.summaries.forEach((sum) => { totalQuizzes += sum.quizzes.length; });
+      doc.summaries.forEach((sum) => {
+        totalQuizzes += sum.quizzes.length;
+        sum.quizzes.forEach((q) => { totalQuizScore += q.score || 0; });
+        if (sum.concepts) {
+          try {
+            const parsed = JSON.parse(sum.concepts);
+            if (Array.isArray(parsed)) conceptsExtracted += parsed.length;
+          } catch {}
+        }
+      });
     });
 
     const analytics = user.analytics[0] || {
@@ -49,39 +62,61 @@ export async function GET(req: NextRequest) {
       retentionRating: 0,
     };
 
-    const recentSessions = user.sessions.slice(0, 5);
+    const avgQuizAccuracy = totalQuizzes > 0 ? Math.round(totalQuizScore / totalQuizzes) : 0;
+    const efficiency = avgQuizAccuracy > 0 ? `+${Math.round(avgQuizAccuracy / 15)}%` : "0%";
+
+    // Build activity data from sessions, fill gaps with empty days
+    const sessionDays = user.sessions.slice(0, 14).map((s) => ({
+      name: new Date(s.createdAt).toLocaleDateString("en-US", { weekday: "short" }),
+      hours: parseFloat((parseInt(s.duration || "0") / 60).toFixed(1)) || 0.5,
+      neuralActivity: s.score || 40,
+    }));
+    const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const activityData = dayNames.map((day) => {
+      const match = sessionDays.find((s) => s.name === day);
+      return match || { name: day, hours: 0, neuralActivity: 0 };
+    });
+
+    // Build subject mastery from actual document titles
+    const subjectMastery = user.documents.slice(0, 4).map((doc, i) => {
+      const summaryCount = doc.summaries.length;
+      const quizCount = doc.summaries.reduce((acc, s) => acc + s.quizzes.length, 0);
+      const progress = summaryCount > 0 ? Math.min(60 + summaryCount * 10 + quizCount * 5, 98) : 10;
+      return {
+        topic: doc.name?.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ") || `Document ${i + 1}`,
+        progress,
+        color: docColors[i % docColors.length],
+      };
+    });
+
+    // Build meaningful ai diagnosis
+    let aiDiagnosis: string;
+    if (totalDocs === 0) {
+      aiDiagnosis = "Upload your first document to begin cognitive analysis.";
+    } else {
+      const diagParts: string[] = [];
+      diagParts.push(`Analysis of ${totalDocs} document${totalDocs > 1 ? "s" : ""} complete.`);
+      if (conceptsExtracted > 0) diagParts.push(`${conceptsExtracted} concepts extracted.`);
+      if (totalQuizzes > 0) diagParts.push(`${totalQuizzes} quiz${totalQuizzes > 1 ? "zes" : ""} taken at ${avgQuizAccuracy}% average accuracy.`);
+      if (analytics.studyMinutes > 0) diagParts.push(`${Math.round(analytics.studyMinutes / 60)}h total study time.`);
+      if (avgQuizAccuracy >= 70) diagParts.push("Retention is strong — consider exploring advanced topics.");
+      else if (avgQuizAccuracy >= 40) diagParts.push("Moderate retention — review weaker areas with targeted quizzes.");
+      else diagParts.push("Early stage — continue ingesting documents and taking practice quizzes.");
+      aiDiagnosis = diagParts.join(" ");
+    }
 
     return NextResponse.json({
       success: true,
       data: {
         metrics: {
           deepWorkHours: Math.round((analytics.studyMinutes / 60) * 10) / 10,
-          conceptsMastered: totalSummaries,
-          neuralSynapses: totalDocs * 10,
-          efficiencyDelta: analytics.retentionRating > 0 ? `+${Math.round(analytics.retentionRating / 10)}%` : "0%",
+          conceptsMastered: conceptsExtracted || totalSummaries,
+          neuralSynapses: totalDocs + totalQuizzes + conceptsExtracted,
+          efficiencyDelta: efficiency,
         },
-        activityData: user.sessions.slice(0, 7).map((s, i) => ({
-          name: new Date(s.createdAt).toLocaleDateString("en-US", { weekday: "short" }),
-          hours: Math.round(parseInt(s.duration) / 10) || 1,
-          neuralActivity: s.score || 50,
-        })),
-        subjectMastery: user.documents.slice(0, 3).map((doc, i) => {
-          const subjects = [
-            { topic: "Neuroscience", color: "#00F5D4" },
-            { topic: "Data Science", color: "#38BDF8" },
-            { topic: "Machine Learning", color: "#FF8A00" },
-            { topic: "Cognitive Science", color: "#8B5CF6" },
-          ];
-          const progress = doc.summaries.length > 0 ? Math.min(85 + doc.summaries.length * 5, 98) : 30 + (i * 15);
-          return {
-            topic: subjects[i % subjects.length].topic,
-            progress,
-            color: subjects[i % subjects.length].color,
-          };
-        }),
-        aiDiagnosis: totalDocs > 0
-          ? `Your retention is optimal across ${totalDocs} ingested documents. ${totalQuizzes > 0 ? `Completed ${totalQuizzes} quizzes with ${analytics.retentionRating}% average accuracy.` : "Take a quiz to benchmark your knowledge."}`
-          : "Upload your first document to begin cognitive analysis.",
+        activityData,
+        subjectMastery,
+        aiDiagnosis,
       },
     });
   } catch (error: any) {
