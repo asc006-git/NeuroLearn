@@ -122,6 +122,8 @@ export default function QuizLab() {
       case "ShortAnswer": return 60;
       case "Scenario": return 90;
       case "Match": return 45;
+      case "Concept": return 60;
+      case "Application": return 90;
       default: return 30;
     }
   }, [question]);
@@ -154,14 +156,16 @@ export default function QuizLab() {
         if (!question.matchPairs) return false;
         return question.matchPairs.every((pair: any) => matchSelections[pair.left] === pair.right);
       }
-      case "Scenario": {
+      case "Scenario":
+      case "Concept":
+      case "Application": {
         // Similar to short answer
         if (selectedAnswer !== null && question.options) {
           const ans = question.correctAnswer;
           return ans === selectedAnswer || question.options?.[selectedAnswer] === ans;
         }
         const correctWords = (question.correctAnswer || "").toLowerCase().split(/\s+/).filter((w: string) => w.length > 3);
-        const givenWords = shortAnswer.toLowerCase().split(/\s+/);
+        const givenWords = (question.type === "Concept" ? shortAnswer : shortAnswer).toLowerCase().split(/\s+/);
         const matchCount = correctWords.filter((w: string) => givenWords.some((gw: string) => gw.includes(w) || w.includes(gw))).length;
         return matchCount >= Math.ceil(correctWords.length * 0.3);
       }
@@ -189,6 +193,8 @@ export default function QuizLab() {
       case "Match":
         return question.matchPairs ? Object.keys(matchSelections).length === question.matchPairs.length : false;
       case "Scenario":
+      case "Concept":
+      case "Application":
         return question.options ? selectedAnswer !== null : shortAnswer.trim().length > 10;
       default:
         return selectedAnswer !== null;
@@ -214,7 +220,7 @@ export default function QuizLab() {
       setIsSubmitted(true);
       const correct = !isTimeout && checkAnswer();
       if (correct) {
-        const points = qType === "Scenario" ? 200 : qType === "ShortAnswer" ? 150 : 100;
+        const points = qType === "Scenario" || qType === "Application" ? 200 : qType === "ShortAnswer" || qType === "Concept" ? 150 : 100;
         setScore((s) => s + points * multiplier);
         setStreak((s) => s + 1);
         setShowCorrectBurst(true);
@@ -242,14 +248,14 @@ export default function QuizLab() {
       setCurrentQIndex((c) => c + 1);
       // Set timer for next question type
       const nextQ = questions[currentQIndex + 1];
-      const nextTimer = nextQ?.type === "ShortAnswer" ? 60 : nextQ?.type === "Scenario" ? 90 : nextQ?.type === "Match" ? 45 : 30;
+      const nextTimer = nextQ?.type === "ShortAnswer" || nextQ?.type === "Concept" ? 60 : nextQ?.type === "Scenario" || nextQ?.type === "Application" ? 90 : nextQ?.type === "Match" ? 45 : 30;
       setTimeLeft(nextTimer);
     } else {
       setGameState("summary");
       setSubmittingScore(true);
       try {
         const maxScore = questions.reduce((acc: number, q: any) => {
-          const pts = q.type === "Scenario" ? 200 : q.type === "ShortAnswer" ? 150 : 100;
+          const pts = q.type === "Scenario" || q.type === "Application" ? 200 : q.type === "ShortAnswer" || q.type === "Concept" ? 150 : 100;
           return acc + pts;
         }, 0);
         const finalAccuracy = Math.round((score / maxScore) * 100) || 0;
@@ -285,7 +291,7 @@ export default function QuizLab() {
     setGameState("playing");
     // Set initial timer based on first question type
     const firstQ = (() => { try { return JSON.parse(quiz.questions)[0]; } catch { return null; } })();
-    setTimeLeft(firstQ?.type === "ShortAnswer" ? 60 : firstQ?.type === "Scenario" ? 90 : firstQ?.type === "Match" ? 45 : 30);
+    setTimeLeft(firstQ?.type === "ShortAnswer" || firstQ?.type === "Concept" ? 60 : firstQ?.type === "Scenario" || firstQ?.type === "Application" ? 90 : firstQ?.type === "Match" ? 45 : 30);
   };
 
   const returnToLobby = () => {
