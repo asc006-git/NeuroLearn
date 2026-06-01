@@ -930,6 +930,46 @@ function generateLocalQuiz(text: string, filename: string): QuizResult {
     }
   }
 
+  // ── Concept Question (if key entities exist) ──
+  const primaryEntity = entities[0];
+  if (primaryEntity && primaryEntity.contexts.length > 0) {
+    const conceptContext = primaryEntity.contexts[0];
+    questions.push({
+      id: `q${qId++}`,
+      type: "Concept",
+      difficulty: "Medium",
+      question: `Explain the concept of ${capitalize(primaryEntity.name)} as described in the document. What role does it play and why is it important?`,
+      correctAnswer: `${capitalize(primaryEntity.name)} is described as: ${conceptContext.substring(0, 300)}`,
+      explanation: `This concept is central to understanding the document because: ${conceptContext.substring(0, 200)}`,
+      conceptName: capitalize(primaryEntity.name),
+      topic: "Core Concepts",
+      learningObjective: "Demonstrate understanding of a key concept from the document",
+    });
+  }
+
+  // ── Application Question (if sections with methodology exist) ──
+  const appSection = sections.find((s) =>
+    /\b(?:methodology|implementation|design|approach|architecture|how\s+to|guide)\b/i.test(s.heading)
+  );
+  if (appSection && appSection.content.length > 100) {
+    const appSentences = extractSentences(appSection.content).slice(0, 4);
+    const appText = appSentences.join(" ");
+    const appEntity = entities.find((e) => appText.toLowerCase().includes(e.name.toLowerCase()));
+    const applicationTopic = appEntity ? appEntity.name : "the described methodology";
+
+    questions.push({
+      id: `q${qId++}`,
+      type: "Application",
+      difficulty: "Hard",
+      question: `Based on the "${appSection.heading}" section, how would you apply the ${applicationTopic} approach to a new project with different requirements? What key principles would you adapt?`,
+      context: `A new project is starting with different constraints than what is described in the document. The core principles from "${appSection.heading}" still apply, but the implementation details may need adjustment.`,
+      correctAnswer: `Key principles to adapt from the document's approach: ${appSentences.slice(0, 2).join(" ")}. These should be tailored to the new context while maintaining the fundamental methodology.`,
+      explanation: `${appText.substring(0, 250)}. The application of these principles to new contexts is a key skill derived from understanding the document.`,
+      topic: "Knowledge Transfer",
+      learningObjective: "Apply learned concepts to solve problems in new contexts",
+    });
+  }
+
   // ── Match the Following (if enough entities) ──
   if (techStack.length >= 3) {
     const matchPairs = techStack.slice(0, 5).map((t) => ({
