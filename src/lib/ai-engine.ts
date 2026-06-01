@@ -1088,11 +1088,16 @@ async function tryGeminiSummary(text: string, filename: string): Promise<Summary
 REQUIREMENTS:
 1. Detect the document type (Research Paper, Project Report, Notes, Technical Document, Book Chapter, or Study Material)
 2. Generate a detailed 5-10 paragraph executive summary covering purpose, objectives, architecture, methodology, findings, technologies, and conclusions
-3. Extract 5-10 key insights as bullet points
-4. Identify 4-6 core concepts with name, explanation, and importance
-5. Detect all technologies, frameworks, databases, APIs, and tools mentioned
-6. Generate exam-oriented revision notes
-7. If the document has clear sections/chapters, summarize each one
+3. Generate an expanded detailed summary (10-15 paragraphs) with deeper analysis
+4. Extract 5-10 key insights as bullet points
+5. Extract 3-5 key takeaways as concise bullet points
+6. Identify 4-6 core concepts with name, explanation, and importance
+7. Extract 5-10 important definitions (term + definition pairs)
+8. Extract 3-6 factual statements from the document
+9. Extract any formulas, equations, or mathematical relationships found
+10. Detect all technologies, frameworks, databases, APIs, and tools mentioned
+11. Generate exam-oriented revision notes
+12. If the document has clear sections/chapters, summarize each one
 
 The summary should read like professional analysis, NOT keyword lists. Example quality:
 "This document presents an AI-Powered Content Simplifier and Interactive Learning Assistant developed to transform lengthy educational PDFs into structured learning material. The system integrates secure authentication, document processing, AI summarization, intelligent quiz generation, PostgreSQL storage, and interactive dashboards..."
@@ -1102,9 +1107,18 @@ Respond with ONLY raw JSON (no markdown fences), in this exact structure:
   "title": "${cleanName}",
   "documentType": "Research Paper|Project Report|Notes|Technical Document|Book Chapter|Study Material",
   "executiveBrief": "5-10 paragraphs of coherent, analytical summary...",
+  "detailedSummary": "10-15 paragraphs of expanded detailed analysis...",
   "keyInsights": ["insight 1", "insight 2", ...],
+  "keyTakeaways": ["takeaway 1", "takeaway 2", ...],
   "concepts": [
     {"name": "Concept Name", "explanation": "Clear explanation of what it is and how it works...", "importance": "Why this concept matters in the document..."}
+  ],
+  "definitions": [
+    {"term": "Term Name", "definition": "Clear definition..."}
+  ],
+  "facts": ["Factual statement 1", "Factual statement 2", ...],
+  "formulas": [
+    {"name": "Formula Name", "formula": "E=mc^2", "description": "What this formula represents..."}
   ],
   "technologyStack": [
     {"name": "Technology Name", "category": "Framework|Database|API|Language|AI/ML|Tool|Library", "context": "How it's used in the document..."}
