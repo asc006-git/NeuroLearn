@@ -227,8 +227,8 @@ export async function POST(req: NextRequest) {
             console.error("[AI Engine] Note population error (non-fatal):", e);
           }
 
-          // ── Stage 5: Generating Quiz ──────────────────────
-          send("injecting", "Generating multi-type contextual quiz — MCQ, True/False, Fill-in-the-Blanks, Scenario-based...");
+          // ── Stage 6: Generating Quiz ──────────────────────
+          send("injecting", "Generating multi-type contextual quiz — MCQ, True/False, Fill-in-the-Blanks, Scenario, Concept, Application...");
           await updateDocStatus("Generating Quiz", "AI contextual quiz compilation in progress.");
 
           const quizResult = await generateQuiz(cleanedText, file.name);
@@ -243,7 +243,7 @@ export async function POST(req: NextRequest) {
             },
           });
 
-          // ── Stage 6: Generate Knowledge Map ────────────────
+          // ── Stage 7: Generate Knowledge Map ────────────────
           try {
             const parsedConcepts = typeof summaryResult.concepts === "string"
               ? JSON.parse(summaryResult.concepts)
