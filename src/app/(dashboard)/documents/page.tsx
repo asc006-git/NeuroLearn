@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { FileText, Search, Download, Trash2, BrainCircuit, Tag, Loader2 } from "lucide-react";
 
@@ -19,6 +20,7 @@ const itemVariants = {
 const COLORS = ["#FF8A00", "#00F5D4", "#38BDF8", "#8B5CF6"];
 
 export default function Documents() {
+  const router = useRouter();
   const [documents, setDocuments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchFocused, setSearchFocused] = useState(false);
@@ -162,6 +164,7 @@ export default function Documents() {
                         key={doc.id}
                         whileHover={{ y: -6, scale: 1.01 }}
                         transition={springConfig}
+                        onClick={() => router.push(`/documents/${doc.id}`)}
                         className="group relative flex flex-col cursor-pointer"
                         style={{
                           background: "rgba(11, 16, 32, 0.6)",
@@ -245,7 +248,7 @@ export default function Documents() {
                           })()}
                           <div className="flex gap-2">
                             <button
-                              onClick={() => handleDelete(doc.id)}
+                              onClick={(e) => { e.stopPropagation(); handleDelete(doc.id); }}
                               className="p-1.5 text-text-ghost hover:text-danger transition-colors cursor-pointer"
                               title="Delete source"
                             >
