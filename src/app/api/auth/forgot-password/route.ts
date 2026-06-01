@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { sendPasswordResetEmail } from "@/lib/mail";
 import crypto from "crypto";
 
 export async function POST(request: Request) {
@@ -18,16 +19,14 @@ export async function POST(request: Request) {
     });
 
     if (!user) {
-      // Return a successful message to prevent email enumeration
       return NextResponse.json(
         { message: "If a profile is bound to this email, a reset transmission has been sent." },
         { status: 200 }
       );
     }
 
-    // Generate secure token and expiry (1 hour)
     const token = crypto.randomBytes(32).toString("hex");
-    const expiry = new Date(Date.now() + 3600000); // 1 hour
+    const expiry = new Date(Date.now() + 3600000);
 
     await prisma.user.update({
       where: { email },
@@ -37,17 +36,15 @@ export async function POST(request: Request) {
       },
     });
 
-    // Simulate sending email via backend console log
-    console.log("\n╔══════════════════════════════════════════════════════════════════╗");
-    console.log("║ NEUROLEARN AI — SIMULATED EMAIL RESET SERVICE                   ║");
-    console.log("╠══════════════════════════════════════════════════════════════════╣");
-    console.log(`║ TO:      ${email.padEnd(54)} ║`);
-    console.log(`║ LINK:    http://localhost:3000/auth/reset-password?token=${token.substring(0, 16)}... ║`);
-    console.log(`║ FULL URL: http://localhost:3000/auth/reset-password?token=${token} ║`);
-    console.log("╚══════════════════════════════════════════════════════════════════╝\n");
+    const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const resetLink = `${baseUrl}/auth/reset-password?token=${token}`;
+
+    const sent = await sendPasswordResetEmail(email, resetLink);
 
     return NextResponse.json(
-      { message: "A secure reset link has been dispatched to your email address (simulated)." },
+      { message: sent
+        ? "A secure reset link has been dispatched to your email address."
+        : "A secure reset link has been dispatched to your email address (simulated)." },
       { status: 200 }
     );
   } catch (error: any) {
