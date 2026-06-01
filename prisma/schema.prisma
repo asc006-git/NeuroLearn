@@ -23,6 +23,8 @@ model User {
   analytics      Analytics[]
   preferences    UserPreferences?
   sessions       LearningSession[]
+  notes          Note[]
+  knowledgeMaps  KnowledgeMap[]
   accounts       Account[]
   authSessions   Session[]
   resetToken     String?           @unique
@@ -115,6 +117,7 @@ model Summary {
   generatedAt      DateTime          @default(now())
   document         Document          @relation(fields: [documentId], references: [id], onDelete: Cascade)
   quizzes          Quiz[]
+  notes            Note[]
 }
 
 model Quiz {
@@ -126,6 +129,27 @@ model Quiz {
   score         Int               @default(0)
   createdAt     DateTime          @default(now())
   summary       Summary           @relation(fields: [summaryId], references: [id], onDelete: Cascade)
+}
+
+model Note {
+  id        String     @id @default(uuid())
+  userId    String
+  summaryId String?
+  title     String
+  content   String     @db.Text
+  type      String     @default("user") // concept, definition, revision, flashcard, user
+  source    String?    // e.g., "AI-generated", "user-created"
+  tags      String?    // Comma-separated tags
+  pinned    Boolean    @default(false)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  summary Summary? @relation(fields: [summaryId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([summaryId])
+  @@index([type])
 }
 
 model KnowledgeMap {
