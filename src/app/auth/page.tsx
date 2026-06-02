@@ -89,8 +89,6 @@ export default function Auth() {
           setSuccess(data.message || "A secure reset link has been dispatched.");
         }
       } else if (isLogin) {
-        // Sign In
-        // Sign In
         const result = await signIn("credentials", {
           email,
           password,

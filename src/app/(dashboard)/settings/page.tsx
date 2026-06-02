@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { User, Bell, Shield, Paintbrush, Database, Sparkles, LogOut, Command, Zap, Volume2, Moon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -86,19 +86,93 @@ function NeuralSlider({ value, onChange, min = 1, max = 3, labels, color = "#FF8
 }
 
 export default function Settings() {
-  const { data: session } = useSession();
+  const { data: session, update } = useSession();
   const [activeTab, setActiveTab] = useState("profile");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
   const [processingIntensity, setProcessingIntensity] = useState(2);
   const [adaptiveQuiz, setAdaptiveQuiz] = useState(true);
   const [voiceMode, setVoiceMode] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
   const [emailNotifs, setEmailNotifs] = useState(true);
   const [pushNotifs, setPushNotifs] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [savedMsg, setSavedMsg] = useState("");
 
-  const nameParts = session?.user?.name ? session.user.name.split(" ") : ["User", ""];
-  const firstName = nameParts[0] || "User";
-  const lastName = nameParts.slice(1).join(" ") || "";
-  const email = session?.user?.email || "user@neurolearn.ai";
+  useEffect(() => {
+    if (session?.user) {
+      const parts = session.user.name ? session.user.name.split(" ") : ["User", ""];
+      setFirstName(parts[0] || "User");
+      setLastName(parts.slice(1).join(" ") || "");
+      setEmail(session.user.email || "");
+    }
+    fetch("/api/profile")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.user) {
+          const parts = data.user.name ? data.user.name.split(" ") : ["User", ""];
+          setFirstName(parts[0] || "User");
+          setLastName(parts.slice(1).join(" ") || "");
+          setEmail(data.user.email || "");
+        }
+        if (data.preferences) {
+          setProcessingIntensity(data.preferences.processingIntensity ?? 2);
+          setAdaptiveQuiz(data.preferences.adaptiveQuiz ?? true);
+          setVoiceMode(data.preferences.voiceMode ?? false);
+          setDarkMode(data.preferences.theme === "light" ? false : true);
+          setEmailNotifs(data.preferences.emailNotifications ?? true);
+          setPushNotifs(data.preferences.pushNotifications ?? true);
+        }
+      })
+      .catch(() => {});
+  }, [session]);
+
+  const saveProfile = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: `${firstName} ${lastName}`.trim(), email }),
+      });
+      if (res.ok) {
+        setSavedMsg("Profile saved");
+        update();
+        setTimeout(() => setSavedMsg(""), 3000);
+      }
+    } catch {
+      setSavedMsg("Failed to save profile");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const savePreferences = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/preferences", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          processingIntensity,
+          adaptiveQuiz,
+          voiceMode,
+          theme: darkMode ? "dark" : "light",
+          emailNotifications: emailNotifs,
+          pushNotifications: pushNotifs,
+        }),
+      });
+      if (res.ok) {
+        setSavedMsg("Preferences saved");
+        setTimeout(() => setSavedMsg(""), 3000);
+      }
+    } catch {
+      setSavedMsg("Failed to save preferences");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-8 min-h-[calc(100vh-8rem)]">
@@ -265,22 +339,22 @@ export default function Settings() {
                       ))}
                     </div>
 
-                    <div className="flex justify-end gap-4">
-                      <button className="text-text-ghost hover:text-text-primary font-semibold px-6 py-3 rounded-xl transition-all text-sm">
-                        Discard
-                      </button>
+                    <div className="flex justify-end gap-4 items-center">
+                      {savedMsg && <span className="text-sm text-emerald-400">{savedMsg}</span>}
                       <motion.button
                         whileHover={{ scale: 1.03 }}
                         whileTap={{ scale: 0.97 }}
                         transition={springConfig}
-                        className="font-semibold px-8 py-3 rounded-xl text-sm"
+                        onClick={saveProfile}
+                        disabled={saving}
+                        className="font-semibold px-8 py-3 rounded-xl text-sm disabled:opacity-50"
                         style={{
                           background: "linear-gradient(135deg, #00F5D4, #38BDF8)",
                           color: "#050816",
                           boxShadow: "0 0 25px rgba(0, 245, 212, 0.2)",
                         }}
                       >
-                        Apply Changes
+                        {saving ? "Saving..." : "Apply Changes"}
                       </motion.button>
                     </div>
                   </div>
@@ -357,6 +431,24 @@ export default function Settings() {
                         <NeuralToggle enabled={voiceMode} onToggle={() => setVoiceMode(!voiceMode)} color="#38BDF8" />
                       </div>
                     </div>
+                    <div className="flex justify-end gap-4 items-center pt-4">
+                      {savedMsg && <span className="text-sm text-emerald-400">{savedMsg}</span>}
+                      <motion.button
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.97 }}
+                        transition={springConfig}
+                        onClick={savePreferences}
+                        disabled={saving}
+                        className="font-semibold px-8 py-3 rounded-xl text-sm disabled:opacity-50"
+                        style={{
+                          background: "linear-gradient(135deg, #FF8A00, #38BDF8)",
+                          color: "#050816",
+                          boxShadow: "0 0 25px rgba(255, 138, 0, 0.2)",
+                        }}
+                      >
+                        {saving ? "Saving..." : "Save Preferences"}
+                      </motion.button>
+                    </div>
                   </div>
                 </>
               )}
@@ -391,6 +483,24 @@ export default function Settings() {
                         ))}
                       </div>
                     </div>
+                    <div className="flex justify-end gap-4 items-center pt-4">
+                      {savedMsg && <span className="text-sm text-emerald-400">{savedMsg}</span>}
+                      <motion.button
+                        whileHover={{ scale: 1.03 }}
+                        whileTap={{ scale: 0.97 }}
+                        transition={springConfig}
+                        onClick={savePreferences}
+                        disabled={saving}
+                        className="font-semibold px-8 py-3 rounded-xl text-sm disabled:opacity-50"
+                        style={{
+                          background: "linear-gradient(135deg, #8B5CF6, #38BDF8)",
+                          color: "#050816",
+                          boxShadow: "0 0 25px rgba(139, 92, 246, 0.2)",
+                        }}
+                      >
+                        {saving ? "Saving..." : "Save Appearance"}
+                      </motion.button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -417,20 +527,170 @@ export default function Settings() {
                       <NeuralToggle enabled={pushNotifs} onToggle={() => setPushNotifs(!pushNotifs)} color="#38BDF8" />
                     </div>
                   </div>
+                  <div className="flex justify-end gap-4 items-center pt-4">
+                    {savedMsg && <span className="text-sm text-emerald-400">{savedMsg}</span>}
+                    <motion.button
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                      transition={springConfig}
+                      onClick={savePreferences}
+                      disabled={saving}
+                      className="font-semibold px-8 py-3 rounded-xl text-sm disabled:opacity-50"
+                      style={{
+                        background: "linear-gradient(135deg, #FF8A00, #00F5D4)",
+                        color: "#050816",
+                        boxShadow: "0 0 25px rgba(255, 138, 0, 0.2)",
+                      }}
+                    >
+                      {saving ? "Saving..." : "Save Notifications"}
+                    </motion.button>
+                  </div>
                 </div>
               )}
 
-              {/* ═══ PLACEHOLDER TABS ═══ */}
-              {["security", "data"].includes(activeTab) && (
-                <div className="flex flex-col items-center justify-center h-64 text-center">
-                  <div
-                    className="w-16 h-16 rounded-2xl flex items-center justify-center mb-6"
-                    style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
-                  >
-                    <Command className="w-8 h-8 text-text-ghost" />
+              {/* ═══ SECURITY TAB ═══ */}
+              {activeTab === "security" && (
+                <div className="relative z-10">
+                  <h3 className="text-2xl font-display font-semibold text-text-primary mb-8 tracking-tight flex items-center gap-3">
+                    <Shield className="text-electric-blue w-6 h-6" /> Privacy & Security
+                  </h3>
+                  <div className="space-y-8">
+                    <div className="p-6 rounded-2xl" style={{ background: "rgba(11, 16, 32, 0.5)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                      <h4 className="text-lg font-medium text-text-primary mb-4">Change Password</h4>
+                      <div className="space-y-4">
+                        <input
+                          type="password"
+                          placeholder="Current password"
+                          id="currentPassword"
+                          className="w-full py-3 px-4 text-text-primary focus:outline-none transition-all rounded-xl text-sm"
+                          style={{ background: "rgba(5, 8, 22, 0.5)", border: "1px solid rgba(255,255,255,0.08)" }}
+                        />
+                        <input
+                          type="password"
+                          placeholder="New password"
+                          id="newPassword"
+                          className="w-full py-3 px-4 text-text-primary focus:outline-none transition-all rounded-xl text-sm"
+                          style={{ background: "rgba(5, 8, 22, 0.5)", border: "1px solid rgba(255,255,255,0.08)" }}
+                        />
+                        <input
+                          type="password"
+                          placeholder="Confirm new password"
+                          id="confirmPassword"
+                          className="w-full py-3 px-4 text-text-primary focus:outline-none transition-all rounded-xl text-sm"
+                          style={{ background: "rgba(5, 8, 22, 0.5)", border: "1px solid rgba(255,255,255,0.08)" }}
+                        />
+                        <div className="flex justify-end pt-2">
+                          <motion.button
+                            whileHover={{ scale: 1.03 }}
+                            whileTap={{ scale: 0.97 }}
+                            transition={springConfig}
+                            id="updatePasswordBtn"
+                            className="font-semibold px-8 py-3 rounded-xl text-sm"
+                            style={{
+                              background: "linear-gradient(135deg, #00F5D4, #38BDF8)",
+                              color: "#050816",
+                              boxShadow: "0 0 25px rgba(0, 245, 212, 0.2)",
+                            }}
+                            onClick={async () => {
+                              const current = (document.getElementById("currentPassword") as HTMLInputElement).value;
+                              const newPass = (document.getElementById("newPassword") as HTMLInputElement).value;
+                              const confirm = (document.getElementById("confirmPassword") as HTMLInputElement).value;
+                              if (newPass !== confirm) return;
+                              const res = await fetch("/api/profile/password", {
+                                method: "PUT",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ currentPassword: current, newPassword: newPass }),
+                              });
+                              if (res.ok) {
+                                (document.getElementById("currentPassword") as HTMLInputElement).value = "";
+                                (document.getElementById("newPassword") as HTMLInputElement).value = "";
+                                (document.getElementById("confirmPassword") as HTMLInputElement).value = "";
+                                setSavedMsg("Password updated");
+                                setTimeout(() => setSavedMsg(""), 3000);
+                              } else {
+                                setSavedMsg("Failed to update password");
+                              }
+                            }}
+                          >
+                            Update Password
+                          </motion.button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <h3 className="text-xl font-display font-medium text-text-primary mb-2">Module Offline</h3>
-                  <p className="text-text-muted text-sm">This configuration sector is currently under development.</p>
+                </div>
+              )}
+
+              {/* ═══ DATA TAB ═══ */}
+              {activeTab === "data" && (
+                <div className="relative z-10">
+                  <h3 className="text-2xl font-display font-semibold text-text-primary mb-8 tracking-tight flex items-center gap-3">
+                    <Database className="text-quantum-orange w-6 h-6" /> Data Management
+                  </h3>
+                  <div className="space-y-8">
+                    {[
+                      {
+                        title: "Export Learning Data",
+                        desc: "Download all your learning data including documents, notes, quiz results, and analytics as a JSON archive.",
+                        action: async () => {
+                          const res = await fetch("/api/profile/export");
+                          if (res.ok) {
+                            const blob = await res.blob();
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = "neurolearn-export.json";
+                            a.click();
+                            URL.revokeObjectURL(url);
+                            setSavedMsg("Data exported");
+                          } else {
+                            setSavedMsg("Export failed");
+                          }
+                          setTimeout(() => setSavedMsg(""), 3000);
+                        },
+                        btnLabel: "Export Data",
+                        color: "#00F5D4",
+                      },
+                      {
+                        title: "Delete Account",
+                        desc: "Permanently delete your account and all associated data. This action cannot be undone.",
+                        action: async () => {
+                          if (!confirm("Are you sure you want to delete your account? This cannot be undone.")) return;
+                          const res = await fetch("/api/profile", { method: "DELETE" });
+                          if (res.ok) {
+                            signOut({ callbackUrl: "/auth" });
+                          } else {
+                            setSavedMsg("Account deletion failed");
+                            setTimeout(() => setSavedMsg(""), 3000);
+                          }
+                        },
+                        btnLabel: "Delete Account",
+                        color: "#FF6B6B",
+                      },
+                    ].map((item, i) => (
+                      <div key={i} className="p-6 rounded-2xl" style={{ background: "rgba(11, 16, 32, 0.5)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                        <h4 className="text-lg font-medium text-text-primary mb-2">{item.title}</h4>
+                        <p className="text-sm text-text-muted mb-4 max-w-lg">{item.desc}</p>
+                        <div className="flex justify-end">
+                          <motion.button
+                            whileHover={{ scale: 1.03 }}
+                            whileTap={{ scale: 0.97 }}
+                            transition={springConfig}
+                            className="font-semibold px-8 py-3 rounded-xl text-sm"
+                            style={{
+                              background: `linear-gradient(135deg, ${item.color}, #38BDF8)`,
+                              color: "#050816",
+                              boxShadow: `0 0 25px ${item.color}20`,
+                            }}
+                            onClick={item.action}
+                          >
+                            {item.btnLabel}
+                          </motion.button>
+                        </div>
+                      </div>
+                    ))}
+                    {savedMsg && <p className="text-sm text-emerald-400 text-right">{savedMsg}</p>}
+                  </div>
                 </div>
               )}
             </motion.div>

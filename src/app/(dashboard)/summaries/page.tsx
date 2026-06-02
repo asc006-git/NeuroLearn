@@ -8,6 +8,7 @@ import {
   ChevronDown, ChevronRight, Code2, Brain,
   ClipboardList, ListChecks, Bookmark,
   BookText, Sigma, ScrollText, Variable,
+  Target, ArrowUpRight, Building2, FlaskConical, BarChart3, SquareCheckBig,
 } from "lucide-react";
 
 const springConfig = { stiffness: 120, damping: 18, mass: 0.8 };
@@ -23,7 +24,7 @@ const DOC_TYPE_CONFIG: Record<string, { color: string; icon: any }> = {
   "Study Material": { color: "#FACC15", icon: GraduationCap },
 };
 
-type SummaryTab = "brief" | "detailed" | "insights" | "takeaways" | "concepts" | "definitions" | "facts" | "formulas" | "techstack" | "revision" | "chapters";
+type SummaryTab = "brief" | "detailed" | "insights" | "takeaways" | "concepts" | "definitions" | "facts" | "formulas" | "techstack" | "revision" | "chapters" | "objective" | "findings" | "architecture" | "methodology" | "results" | "conclusion";
 
 export default function Summaries() {
   const [summaries, setSummaries] = useState<any[]>([]);
@@ -83,6 +84,12 @@ export default function Summaries() {
   // Tab configuration
   const tabs: { key: SummaryTab; label: string; icon: any }[] = [
     { key: "brief", label: "Executive Brief", icon: FileText },
+    { key: "objective", label: "Objective", icon: Target },
+    { key: "findings", label: "Key Findings", icon: ArrowUpRight },
+    { key: "architecture", label: "Architecture", icon: Building2 },
+    { key: "methodology", label: "Methodology", icon: FlaskConical },
+    { key: "results", label: "Results", icon: BarChart3 },
+    { key: "conclusion", label: "Conclusion", icon: SquareCheckBig },
     { key: "detailed", label: "Detailed Summary", icon: BookText },
     { key: "insights", label: "Key Insights", icon: Lightbulb },
     { key: "takeaways", label: "Takeaways", icon: ScrollText },
@@ -100,6 +107,12 @@ export default function Summaries() {
     if (!activeSummary) return false;
     switch (tab) {
       case "brief": return !!activeSummary.executiveBrief;
+      case "objective": return !!activeSummary.projectObjective;
+      case "findings": return safeJsonParse(activeSummary.keyFindings).length > 0;
+      case "architecture": return !!activeSummary.architecture;
+      case "methodology": return !!activeSummary.methodology;
+      case "results": return !!activeSummary.results;
+      case "conclusion": return !!activeSummary.conclusion;
       case "detailed": return !!activeSummary.detailedSummary;
       case "insights": return safeJsonParse(activeSummary.keyInsights).length > 0;
       case "takeaways": return safeJsonParse(activeSummary.keyTakeaways).length > 0;
@@ -308,7 +321,7 @@ export default function Summaries() {
                       transition={{ duration: 0.3 }}
                       className="max-w-3xl mx-auto space-y-8"
                     >
-                      {/* ── Executive Brief ── */}
+                      {/* ── Executive Brief (with structured sections) ── */}
                       {activeTab === "brief" && (
                         <div className="space-y-6">
                           <div className="flex items-center gap-3 mb-6">
@@ -318,8 +331,201 @@ export default function Summaries() {
                             </span>
                             <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/15 to-transparent" />
                           </div>
+
+                          {/* Structured summary sections */}
+                          {activeSummary.projectObjective && (
+                            <div className="p-5 rounded-2xl" style={{ background: "rgba(255,138,0,0.04)", border: "1px solid rgba(255,138,0,0.12)" }}>
+                              <div className="flex items-center gap-2 mb-2">
+                                <Target className="w-4 h-4 text-[#FF8A00]" />
+                                <h4 className="text-xs font-bold text-[#FF8A00] uppercase tracking-wider">Project Objective</h4>
+                              </div>
+                              <p className="text-sm text-text-secondary leading-relaxed">{activeSummary.projectObjective}</p>
+                            </div>
+                          )}
+
+                          {(() => { const f = safeJsonParse(activeSummary.keyFindings); return f.length > 0 ? (
+                            <div className="p-5 rounded-2xl" style={{ background: "rgba(139,92,246,0.04)", border: "1px solid rgba(139,92,246,0.12)" }}>
+                              <div className="flex items-center gap-2 mb-3">
+                                <ArrowUpRight className="w-4 h-4 text-[#8B5CF6]" />
+                                <h4 className="text-xs font-bold text-[#8B5CF6] uppercase tracking-wider">Key Findings</h4>
+                              </div>
+                              <div className="space-y-2">
+                                {f.map((item: string, i: number) => (
+                                  <div key={i} className="flex gap-2">
+                                    <span className="text-[#8B5CF6] mt-1 shrink-0">•</span>
+                                    <p className="text-sm text-text-secondary leading-relaxed">{item}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null})()}
+
+                          {activeSummary.architecture && (
+                            <div className="p-5 rounded-2xl" style={{ background: "rgba(56,189,248,0.04)", border: "1px solid rgba(56,189,248,0.12)" }}>
+                              <div className="flex items-center gap-2 mb-2">
+                                <Building2 className="w-4 h-4 text-[#38BDF8]" />
+                                <h4 className="text-xs font-bold text-[#38BDF8] uppercase tracking-wider">Architecture</h4>
+                              </div>
+                              <p className="text-sm text-text-secondary leading-relaxed">{activeSummary.architecture}</p>
+                            </div>
+                          )}
+
+                          {activeSummary.methodology && (
+                            <div className="p-5 rounded-2xl" style={{ background: "rgba(16,185,129,0.04)", border: "1px solid rgba(16,185,129,0.12)" }}>
+                              <div className="flex items-center gap-2 mb-2">
+                                <FlaskConical className="w-4 h-4 text-[#10B981]" />
+                                <h4 className="text-xs font-bold text-[#10B981] uppercase tracking-wider">Methodology</h4>
+                              </div>
+                              <p className="text-sm text-text-secondary leading-relaxed">{activeSummary.methodology}</p>
+                            </div>
+                          )}
+
+                          {activeSummary.results && (
+                            <div className="p-5 rounded-2xl" style={{ background: "rgba(244,114,182,0.04)", border: "1px solid rgba(244,114,182,0.12)" }}>
+                              <div className="flex items-center gap-2 mb-2">
+                                <BarChart3 className="w-4 h-4 text-[#F472B6]" />
+                                <h4 className="text-xs font-bold text-[#F472B6] uppercase tracking-wider">Results</h4>
+                              </div>
+                              <p className="text-sm text-text-secondary leading-relaxed">{activeSummary.results}</p>
+                            </div>
+                          )}
+
+                          {activeSummary.conclusion && (
+                            <div className="p-5 rounded-2xl" style={{ background: "rgba(0,245,212,0.04)", border: "1px solid rgba(0,245,212,0.12)" }}>
+                              <div className="flex items-center gap-2 mb-2">
+                                <SquareCheckBig className="w-4 h-4 text-neural-cyan" />
+                                <h4 className="text-xs font-bold text-neural-cyan uppercase tracking-wider">Conclusion</h4>
+                              </div>
+                              <p className="text-sm text-text-secondary leading-relaxed">{activeSummary.conclusion}</p>
+                            </div>
+                          )}
+
+                          <div className="h-px bg-gradient-to-r from-transparent via-white/10 to-transparent my-2" />
+
                           <div className="text-[15px] text-text-secondary leading-[1.85] font-light whitespace-pre-line">
                             {activeSummary.executiveBrief}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ── Project Objective ── */}
+                      {activeTab === "objective" && (
+                        <div className="space-y-6">
+                          <div className="flex items-center gap-3 mb-4">
+                            <Target className="w-5 h-5 text-[#FF8A00]" />
+                            <h3 className="text-xl font-display font-semibold text-text-primary">Project Objective</h3>
+                          </div>
+                          <div
+                            className="p-6 rounded-2xl"
+                            style={{ background: "rgba(11, 16, 32, 0.5)", border: "1px solid rgba(255,255,255,0.06)" }}
+                          >
+                            <p className="text-sm text-text-secondary leading-[1.9] whitespace-pre-line font-light">
+                              {activeSummary.projectObjective || "No objective extracted for this document."}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ── Key Findings ── */}
+                      {activeTab === "findings" && (() => {
+                        const findings = safeJsonParse(activeSummary.keyFindings);
+                        return findings.length > 0 ? (
+                          <div className="space-y-6">
+                            <div className="flex items-center gap-3 mb-4">
+                              <ArrowUpRight className="w-5 h-5 text-[#8B5CF6]" />
+                              <h3 className="text-xl font-display font-semibold text-text-primary">Key Findings</h3>
+                            </div>
+                            <div className="space-y-3">
+                              {findings.map((item: string, i: number) => (
+                                <motion.div
+                                  key={i}
+                                  initial={{ opacity: 0, x: -10 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  transition={{ delay: i * 0.05 }}
+                                  className="flex gap-3 p-4 rounded-2xl"
+                                  style={{ background: "rgba(11, 16, 32, 0.5)", border: "1px solid rgba(255,255,255,0.06)" }}
+                                >
+                                  <div className="mt-1 shrink-0">
+                                    <div className="w-2 h-2 rounded-full bg-[#8B5CF6] shadow-[0_0_8px_rgba(139,92,246,0.5)]" />
+                                  </div>
+                                  <p className="text-sm text-text-secondary leading-relaxed">{item}</p>
+                                </motion.div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-12 text-text-muted text-sm">No key findings extracted for this document.</div>
+                        );
+                      })()}
+
+                      {/* ── Architecture ── */}
+                      {activeTab === "architecture" && (
+                        <div className="space-y-6">
+                          <div className="flex items-center gap-3 mb-4">
+                            <Building2 className="w-5 h-5 text-[#38BDF8]" />
+                            <h3 className="text-xl font-display font-semibold text-text-primary">Architecture</h3>
+                          </div>
+                          <div
+                            className="p-6 rounded-2xl"
+                            style={{ background: "rgba(11, 16, 32, 0.5)", border: "1px solid rgba(255,255,255,0.06)" }}
+                          >
+                            <p className="text-sm text-text-secondary leading-[1.9] whitespace-pre-line font-light">
+                              {activeSummary.architecture || "No architecture information extracted for this document."}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ── Methodology ── */}
+                      {activeTab === "methodology" && (
+                        <div className="space-y-6">
+                          <div className="flex items-center gap-3 mb-4">
+                            <FlaskConical className="w-5 h-5 text-[#10B981]" />
+                            <h3 className="text-xl font-display font-semibold text-text-primary">Methodology</h3>
+                          </div>
+                          <div
+                            className="p-6 rounded-2xl"
+                            style={{ background: "rgba(11, 16, 32, 0.5)", border: "1px solid rgba(255,255,255,0.06)" }}
+                          >
+                            <p className="text-sm text-text-secondary leading-[1.9] whitespace-pre-line font-light">
+                              {activeSummary.methodology || "No methodology information extracted for this document."}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ── Results ── */}
+                      {activeTab === "results" && (
+                        <div className="space-y-6">
+                          <div className="flex items-center gap-3 mb-4">
+                            <BarChart3 className="w-5 h-5 text-[#F472B6]" />
+                            <h3 className="text-xl font-display font-semibold text-text-primary">Results</h3>
+                          </div>
+                          <div
+                            className="p-6 rounded-2xl"
+                            style={{ background: "rgba(11, 16, 32, 0.5)", border: "1px solid rgba(255,255,255,0.06)" }}
+                          >
+                            <p className="text-sm text-text-secondary leading-[1.9] whitespace-pre-line font-light">
+                              {activeSummary.results || "No results extracted for this document."}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ── Conclusion ── */}
+                      {activeTab === "conclusion" && (
+                        <div className="space-y-6">
+                          <div className="flex items-center gap-3 mb-4">
+                            <SquareCheckBig className="w-5 h-5 text-neural-cyan" />
+                            <h3 className="text-xl font-display font-semibold text-text-primary">Conclusion</h3>
+                          </div>
+                          <div
+                            className="p-6 rounded-2xl"
+                            style={{ background: "rgba(11, 16, 32, 0.5)", border: "1px solid rgba(255,255,255,0.06)" }}
+                          >
+                            <p className="text-sm text-text-secondary leading-[1.9] whitespace-pre-line font-light">
+                              {activeSummary.conclusion || "No conclusion extracted for this document."}
+                            </p>
                           </div>
                         </div>
                       )}

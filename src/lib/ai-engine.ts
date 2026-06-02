@@ -32,6 +32,7 @@ export interface QuizQuestion {
   options?: string[];
   correctAnswer: string;
   explanation: string;
+  whyCorrectIsCorrect?: string;
   topic?: string;
   learningObjective?: string;
   wrongOptionExplanations?: Record<string, string>;
@@ -48,6 +49,12 @@ export interface QuizQuestion {
 export interface SummaryResult {
   title: string;
   documentType: string;
+  projectObjective: string;
+  keyFindings: string[];
+  architecture: string;
+  methodology: string;
+  results: string;
+  conclusion: string;
   executiveBrief: string;
   detailedSummary: string;
   keyInsights: string[];
@@ -701,12 +708,140 @@ function generateLocalSummary(text: string, filename: string): SummaryResult {
     });
   }
 
+  // ── Project Objective ──
+  let projectObjective = "";
+  const objectiveSentences = scoredSentences.filter((s) =>
+    /\b(?:objective|goal|purpose|aim|this\s+(?:paper|report|document|work|study|project)\s+(?:proposes|presents|introduces|aims|describes|explores|investigates|develops|designs|implements))(?:\s+(?:a|an|the|to|and|of))?/i.test(s.text)
+  );
+  if (objectiveSentences.length > 0) {
+    projectObjective = objectiveSentences.slice(0, 3).map((s) => s.text).join(" ");
+  } else {
+    const introScored = scoredSentences.filter((s) => s.score >= 3).slice(0, 2);
+    projectObjective = introScored.length > 0
+      ? introScored.map((s) => s.text).join(" ")
+      : `To analyze and synthesize the content of "${cleanName}" within the domain of ${documentType.toLowerCase()}.`;
+  }
+
+  // ── Key Findings ──
+  const keyFindings: string[] = [];
+  const findingSentences = scoredSentences.filter((s) =>
+    /\b(?:findings?\s+(?:show|indicate|suggest|reveal|demonstrate)|results?\s+(?:show|indicate|suggest|reveal|demonstrate)|key\s+(?:findings?|results?)|we\s+(?:found|observed|noted|discovered)|the\s+(?:study|analysis|experiment)\s+(?:shows|reveals|demonstrates|indicates))\b/i.test(s.text)
+  );
+  for (const s of findingSentences.slice(0, 6)) {
+    const finding = s.text.length > 200 ? s.text.substring(0, 197) + "..." : s.text;
+    if (!keyFindings.some((kf) => kf.includes(finding.substring(0, 40)))) {
+      keyFindings.push(finding);
+    }
+  }
+  if (keyFindings.length === 0) {
+    const highScore = scoredSentences.filter((s) => /\d+(?:%|percent|times|users)/.test(s.text)).slice(0, 4);
+    for (const s of highScore) {
+      const finding = s.text.length > 200 ? s.text.substring(0, 197) + "..." : s.text;
+      if (!keyFindings.some((kf) => kf.includes(finding.substring(0, 40)))) {
+        keyFindings.push(finding);
+      }
+    }
+  }
+
+  // ── Architecture ──
+  let architecture = "";
+  const archSection = sections.find((s) =>
+    /\b(?:architecture|system\s*(?:design|architecture|overview)|technical\s*(?:architecture|design)|high.level\s*(?:design|architecture))\b/i.test(s.heading)
+  );
+  if (archSection && archSection.content.length > 50) {
+    const archScored = extractSentences(archSection.content)
+      .map((s, i) => ({ text: s, score: scoreSentence(s, i, 100, entities, archSection.heading) }))
+      .sort((a, b) => b.score - a.score);
+    architecture = archScored.slice(0, 4).map((s) => s.text).join(" ");
+  } else {
+    const archSentences = scoredSentences.filter((s) =>
+      /\b(?:architecture|system\s+design|layers?|modules?|components?|pipeline|workflow|integration)\b/i.test(s.text)
+    );
+    if (archSentences.length > 0) {
+      architecture = archSentences.slice(0, 3).map((s) => s.text).join(" ");
+    } else {
+      architecture = `The ${documentType.toLowerCase()} presents a structured approach to its subject matter.${techStack.length > 0 ? ` Core technologies include ${techStack.slice(0, 5).map((t) => t.name).join(", ")}.` : ""}`;
+    }
+  }
+
+  // ── Methodology ──
+  let methodology = "";
+  const methodSection = sections.find((s) =>
+    /\b(?:methodology|methods?|approach|implementation|procedure|process|technique|experimental\s+setup|research\s+design)\b/i.test(s.heading)
+  );
+  if (methodSection && methodSection.content.length > 50) {
+    const methodScored = extractSentences(methodSection.content)
+      .map((s, i) => ({ text: s, score: scoreSentence(s, i, 100, entities, methodSection.heading) }))
+      .sort((a, b) => b.score - a.score);
+    methodology = methodScored.slice(0, 4).map((s) => s.text).join(" ");
+  } else {
+    const methodSentences = scoredSentences.filter((s) =>
+      /\b(?:methodology|approach|method|technique|framework|algorithm|process|pipeline|workflow|using|utilizing|leveraging)\b/i.test(s.text)
+    );
+    if (methodSentences.length > 0) {
+      methodology = methodSentences.slice(0, 3).map((s) => s.text).join(" ");
+    } else {
+      methodology = `The ${documentType.toLowerCase()} employs a systematic approach combining ${concepts.slice(0, 3).map((c) => c.name).join(", ") || "multiple analytical methods"} to achieve its objectives.`;
+    }
+  }
+
+  // ── Results ──
+  let results = "";
+  const resultSection = sections.find((s) =>
+    /\b(?:results?|findings?|evaluation|experimental\s+results?|performance|outcomes?|analysis|discussion)\b/i.test(s.heading)
+  );
+  if (resultSection && resultSection.content.length > 50) {
+    const resultScored = extractSentences(resultSection.content)
+      .map((s, i) => ({ text: s, score: scoreSentence(s, i, 100, entities, resultSection.heading) }))
+      .sort((a, b) => b.score - a.score);
+    results = resultScored.slice(0, 4).map((s) => s.text).join(" ");
+  } else {
+    const resultSentences = scoredSentences.filter((s) =>
+      /\b(?:result|finding|achieve|demonstrate|show|improve|enhance|effective|successful|performance|outcome|increase|decrease|reduce)\b/i.test(s.text) && /\d/.test(s.text)
+    );
+    if (resultSentences.length > 0) {
+      results = resultSentences.slice(0, 4).map((s) => s.text).join(" ");
+    } else {
+      const topFactual = scoredSentences.filter((s) => s.score >= 4).slice(0, 3);
+      results = topFactual.length > 0
+        ? topFactual.map((s) => s.text).join(" ")
+        : "The document presents substantive findings within its domain of study.";
+    }
+  }
+
+  // ── Conclusion ──
+  let conclusion = "";
+  const concSection = sections.find((s) =>
+    /\b(?:conclusion|summary|future\s+work|discussion|closing\s+remarks|final\s+thoughts|recommendations?)\b/i.test(s.heading)
+  );
+  if (concSection && concSection.content.length > 50) {
+    const concScored = extractSentences(concSection.content)
+      .map((s, i) => ({ text: s, score: scoreSentence(s, i, 100, entities, concSection.heading) }))
+      .sort((a, b) => b.score - a.score);
+    conclusion = concScored.slice(0, 3).map((s) => s.text).join(" ");
+  } else {
+    const concSentences = scoredSentences.filter((s) =>
+      /\b(?:in\s+conclusion|to\s+summarize|overall|thus|therefore|consequently|this\s+(?:work|study|paper|project)\s+(?:demonstrates|provides|presents|contributes|offers))\b/i.test(s.text)
+    );
+    if (concSentences.length > 0) {
+      conclusion = concSentences.slice(0, 3).map((s) => s.text).join(" ");
+    } else {
+      conclusion = `In summary, this ${documentType.toLowerCase()} provides a comprehensive exploration of ${cleanName}.${techStack.length > 0 ? ` The integration of ${techStack.slice(0, 3).map((t) => t.name).join(", ")} demonstrates a robust approach to the subject matter.` : ""} The findings contribute meaningful insights to the field.`;
+    }
+  }
+
   // ── Build title ──
   const title = `${documentType}: ${cleanName}`;
 
   return {
     title,
     documentType,
+    projectObjective,
+    keyFindings,
+    architecture,
+    methodology,
+    results,
+    conclusion,
     executiveBrief,
     detailedSummary,
     keyInsights,
@@ -772,6 +907,7 @@ function generateLocalQuiz(text: string, filename: string): QuizResult {
         options: allOptions,
         correctAnswer,
         explanation: `The document states: "${context.substring(0, 200)}${context.length > 200 ? "..." : ""}"`,
+        whyCorrectIsCorrect: `${capitalize(entity.name)} is explicitly used for ${purpose} as described in the document context. This aligns with its core function and the system's overall architecture.`,
         topic: capitalize(entity.name),
         learningObjective: `Understand the purpose of ${entity.name} in the documented system`,
         wrongOptionExplanations: wrongExplanations,
@@ -807,6 +943,7 @@ function generateLocalQuiz(text: string, filename: string): QuizResult {
         options: allOptions,
         correctAnswer,
         explanation: `${capitalize(entity.name)} is explicitly mentioned in the document. Context: "${context.substring(0, 200)}${context.length > 200 ? "..." : ""}"`,
+        whyCorrectIsCorrect: `${capitalize(entity.name)} is the concept directly referenced in the provided context from the document. The other options are not mentioned in this specific context.`,
         topic: "Document Concepts",
         learningObjective: "Identify key concepts discussed in the document",
         wrongOptionExplanations: wrongExplanations,
@@ -1010,6 +1147,7 @@ function generateLocalQuiz(text: string, filename: string): QuizResult {
         ],
         correctAnswer: `${mainTopic} and its applications in the described context`,
         explanation: `The document primarily focuses on ${mainTopic}, as evidenced by: "${topSentence.substring(0, 150)}..."`,
+        whyCorrectIsCorrect: `The document's content revolves around ${mainTopic} and its practical applications, as shown by the key entities, concepts, and methodologies discussed throughout.`,
         topic: "Overall Comprehension",
         learningObjective: "Identify the primary focus of the document",
         wrongOptionExplanations: {
@@ -1083,31 +1221,50 @@ async function tryGeminiSummary(text: string, filename: string): Promise<Summary
       body: JSON.stringify({
         contents: [{
           parts: [{
-            text: `You are an expert educational AI that produces intelligent document analysis similar to ChatGPT, Claude, and NotebookLM. Analyze the following document and produce a comprehensive JSON response.
+            text: `You are an expert document analyst producing human-quality intelligence briefings — like a senior reviewer synthesizing a complex document for an executive audience. Analyze the following document with deep comprehension and produce a comprehensive JSON response.
+
+CRITICAL QUALITY STANDARDS:
+- Write like a human expert reviewer, NOT like a keyword extractor
+- Every field must contain fluent, coherent, analytical prose — NEVER lists of keywords
+- Connect ideas across sections to show deep understanding
+- Be specific: reference actual technologies, numbers, names, and concepts from the text
+- The executiveBrief should read like a consulting firm's analysis: insightful, structured, and valuable without reading the source
 
 REQUIREMENTS:
 1. Detect the document type (Research Paper, Project Report, Notes, Technical Document, Book Chapter, or Study Material)
-2. Generate a detailed 5-10 paragraph executive summary covering purpose, objectives, architecture, methodology, findings, technologies, and conclusions
-3. Generate an expanded detailed summary (10-15 paragraphs) with deeper analysis
-4. Extract 5-10 key insights as bullet points
-5. Extract 3-5 key takeaways as concise bullet points
-6. Identify 4-6 core concepts with name, explanation, and importance
-7. Extract 5-10 important definitions (term + definition pairs)
-8. Extract 3-6 factual statements from the document
-9. Extract any formulas, equations, or mathematical relationships found
-10. Detect all technologies, frameworks, databases, APIs, and tools mentioned
-11. Generate exam-oriented revision notes
-12. If the document has clear sections/chapters, summarize each one
+2. Extract the PROJECT OBJECTIVE: What is this document trying to achieve? What problem does it solve? (2-4 sentences)
+3. Extract KEY FINDINGS: 3-6 specific findings or discoveries presented in the document (each as a short paragraph)
+4. Extract ARCHITECTURE: Describe the system architecture, structure, or organizational framework (2-4 sentences)
+5. Extract METHODOLOGY: Describe the approach, methods, processes, or techniques used (2-4 sentences)
+6. Extract RESULTS: What outcomes, performance metrics, or concrete results are reported? (2-4 sentences)
+7. Extract CONCLUSION: What does the document conclude? What are the implications? (2-4 sentences)
+8. Generate an EXECUTIVE BRIEF: 5-10 paragraphs of professional, analytical summary covering purpose, architecture, methodology, findings, technologies, and conclusions — like a McKinsey or Gartner analyst report
+9. Generate DETAILED SUMMARY: 10-15 paragraphs of expanded analysis with deeper technical and contextual insights
+10. Extract 5-10 KEY INSIGHTS as insightful bullet points (each 1-3 sentences, showing understanding)
+11. Extract 3-5 KEY TAKEAWAYS as concise, actionable bullet points
+12. Identify 4-6 CORE CONCEPTS with name, clear explanation (what it is, how it works), and importance (why it matters in this document)
+13. Extract 5-10 IMPORTANT DEFINITIONS (term + clear definition pairs)
+14. Extract 3-6 FACTUAL STATEMENTS from the document
+15. Extract any FORMULAS, equations, or mathematical relationships
+16. Detect all technologies, frameworks, databases, APIs, and tools mentioned
+17. Generate exam-oriented REVISION NOTES with key definitions, facts, and important points
+18. If the document has clear sections/chapters, summarize each one
 
-The summary should read like professional analysis, NOT keyword lists. Example quality:
-"This document presents an AI-Powered Content Simplifier and Interactive Learning Assistant developed to transform lengthy educational PDFs into structured learning material. The system integrates secure authentication, document processing, AI summarization, intelligent quiz generation, PostgreSQL storage, and interactive dashboards..."
+Example of executiveBrief quality:
+"This document presents an AI-Powered Content Simplifier and Interactive Learning Assistant developed to transform lengthy educational PDFs into structured learning material. The system integrates secure authentication, document processing, AI summarization, intelligent quiz generation, PostgreSQL storage, and interactive dashboards. The architecture follows a modular pipeline pattern where each stage — upload, parse, summarize, quiz — operates independently yet feeds into the next..."
 
 Respond with ONLY raw JSON (no markdown fences), in this exact structure:
 {
   "title": "${cleanName}",
   "documentType": "Research Paper|Project Report|Notes|Technical Document|Book Chapter|Study Material",
-  "executiveBrief": "5-10 paragraphs of coherent, analytical summary...",
-  "detailedSummary": "10-15 paragraphs of expanded detailed analysis...",
+  "projectObjective": "2-4 sentences describing the core objective...",
+  "keyFindings": ["Finding 1 with specific details...", "Finding 2 with specific details...", ...],
+  "architecture": "2-4 sentences describing system architecture or document structure...",
+  "methodology": "2-4 sentences describing the approach or methods...",
+  "results": "2-4 sentences describing outcomes or findings...",
+  "conclusion": "2-4 sentences summarizing conclusions and implications...",
+  "executiveBrief": "5-10 paragraphs of professional analytical writing...",
+  "detailedSummary": "10-15 paragraphs of expanded analysis...",
   "keyInsights": ["insight 1", "insight 2", ...],
   "keyTakeaways": ["takeaway 1", "takeaway 2", ...],
   "concepts": [
@@ -1152,6 +1309,12 @@ ${truncatedText}`
     return {
       title: parsed.title || `${cleanName}`,
       documentType: parsed.documentType || "Study Material",
+      projectObjective: parsed.projectObjective || `To analyze and synthesize the content of "${cleanName}".`,
+      keyFindings: parsed.keyFindings || [],
+      architecture: parsed.architecture || "",
+      methodology: parsed.methodology || "",
+      results: parsed.results || "",
+      conclusion: parsed.conclusion || "",
       executiveBrief: parsed.executiveBrief,
       detailedSummary: parsed.detailedSummary || parsed.executiveBrief || "",
       keyInsights: parsed.keyInsights || [],
@@ -1184,27 +1347,34 @@ async function tryGeminiQuiz(text: string, filename: string): Promise<QuizResult
       body: JSON.stringify({
         contents: [{
           parts: [{
-            text: `You are an expert quiz designer. Based on the following document, generate a comprehensive quiz.
+            text: `You are an expert quiz designer creating assessments that test genuine understanding — NOT keyword recognition. Based on the following document, generate a comprehensive quiz.
 
 CRITICAL RULES:
-- Do NOT generate keyword-based questions
-- Generate questions from actual concepts, methodology, and context
-- Each question must test understanding, not just word recognition
-- Include a mix of difficulty levels and question types
-- Every question MUST include a "topic" field (the subject area it covers) and a "learningObjective" field (what the learner should be able to do after answering)
+- NEVER generate questions that can be answered by keyword matching alone
+- Every question must test understanding of concepts, reasoning, methodology, or application
+- Include a mix of Easy, Medium, and Hard difficulty levels across the question set
+- Every question MUST include: "topic", "learningObjective", and "difficulty" fields
+- Every MCQ MUST include "wrongOptionExplanations" — explaining why EACH wrong option is incorrect — AND "whyCorrectIsCorrect" explaining why the right answer is right
+- Wrong options must be plausible but demonstrably incorrect based on the document
+- Difficulty tiers: Easy (recall/comprehension), Medium (application/analysis), Hard (synthesis/evaluation)
 
 Generate 10-14 questions across these types:
-1. MCQ (3-4 questions) — 4 options each, with explanations for why wrong options are wrong
-2. Fill in the Blanks (1-2 questions) — based on key definitions
-3. True/False (1-2 questions) — based on factual statements
-4. Match the Following (0-1 question) — match concepts to descriptions
-5. Short Answer (1 question) — requires brief analytical response
-6. Scenario-based (1 question) — applies concepts to a practical scenario
+1. MCQ (3-4 questions) — 4 options each, with wrongOptionExplanations for ALL wrong options, plus whyCorrectIsCorrect
+2. Fill in the Blanks (1-2 questions) — based on key definitions, with enough context to test understanding
+3. True/False (1-2 questions) — must test nuanced understanding, not trivial facts
+4. Match the Following (0-1 question) — match concepts to descriptions (not just tech-to-category)
+5. Short Answer (1 question) — requires brief analytical response synthesizing multiple concepts
+6. Scenario-based (1 question) — applies concepts to a practical, realistic scenario
 7. Concept (1 question) — tests understanding of a core concept (has a "conceptName" field)
 8. Application (1 question) — asks the learner to apply knowledge to a new situation (has a "context" field)
 
-Example of a GOOD question:
-"Why is PostgreSQL used in this project?" → "To store users, documents, summaries, quizzes, analytics, and learning history" with explanation about relational storage needs.
+Example of a GOOD question (tests understanding, not keyword matching):
+"Why does the system use PostgreSQL rather than a document database for this project?" 
+→ Correct: "The system requires relational integrity across users, documents, summaries, quizzes, and analytics, with complex joins and transactional consistency that relational databases handle natively."
+→ Wrong: "Because PostgreSQL is popular" (not specific to this document's requirements)
+
+Example of a BAD question (keyword matching):
+"What database does the system use?" → "PostgreSQL" (too trivial, tests word recognition)
 
 Respond with ONLY raw JSON (no markdown fences):
 {
@@ -1213,43 +1383,44 @@ Respond with ONLY raw JSON (no markdown fences):
       "id": "q1",
       "type": "MCQ",
       "difficulty": "Easy|Medium|Hard",
-      "question": "The question text...",
+      "question": "The question text that tests understanding...",
       "options": ["Option A", "Option B", "Option C", "Option D"],
       "correctAnswer": "Exact text of correct option",
-      "explanation": "Why this is correct...",
+      "explanation": "Comprehensive explanation of the answer...",
+      "whyCorrectIsCorrect": "Specific reasoning why this option is the correct answer based on document principles...",
       "topic": "Database Systems",
       "learningObjective": "Understand the role of relational databases in web applications",
-      "wrongOptionExplanations": {"Option B": "Why B is wrong...", "Option C": "Why C is wrong...", "Option D": "Why D is wrong..."}
+      "wrongOptionExplanations": {"Option A": "Why Option A is wrong based on the document...", "Option B": "Why Option B is wrong based on the document...", "Option C": "Why Option C is wrong based on the document..."}
     },
     {
       "id": "q2",
       "type": "TrueFalse",
-      "difficulty": "Easy",
-      "question": "True or False: statement...",
+      "difficulty": "Easy|Medium|Hard",
+      "question": "True or False: statement that tests understanding...",
       "options": ["True", "False"],
       "correctAnswer": "True",
-      "explanation": "Why...",
+      "explanation": "Detailed explanation of why this is true or false based on document evidence...",
       "topic": "Core Concepts",
       "learningObjective": "Verify understanding of factual statements"
     },
     {
       "id": "q3",
       "type": "FillBlank",
-      "difficulty": "Medium",
-      "question": "________ is used to...",
+      "difficulty": "Easy|Medium|Hard",
+      "question": "Context-rich sentence where ________ is the key concept being tested...",
       "correctAnswer": "The answer",
-      "explanation": "Why...",
+      "explanation": "Why this term/concept fills the blank correctly...",
       "topic": "Terminology",
       "learningObjective": "Recall key terminology from the document"
     },
     {
       "id": "q4",
       "type": "Match",
-      "difficulty": "Easy",
-      "question": "Match the following...",
-      "matchPairs": [{"left": "Term", "right": "Definition"}],
-      "correctAnswer": "Term → Definition, ...",
-      "explanation": "Why...",
+      "difficulty": "Easy|Medium|Hard",
+      "question": "Match the following items with their correct descriptions...",
+      "matchPairs": [{"left": "Term/Concept", "right": "Description/Definition"}],
+      "correctAnswer": "Term → Description, ...",
+      "explanation": "Detailed explanation of each match...",
       "topic": "Concept Mapping",
       "learningObjective": "Associate terms with their correct definitions"
     },
@@ -1258,8 +1429,8 @@ Respond with ONLY raw JSON (no markdown fences):
       "type": "ShortAnswer",
       "difficulty": "Hard",
       "question": "Explain briefly...",
-      "correctAnswer": "Expected answer...",
-      "explanation": "Key points to include...",
+      "correctAnswer": "Expected answer covering key points...",
+      "explanation": "Key points that should be included...",
       "topic": "Analysis",
       "learningObjective": "Synthesize information from the document into a concise explanation"
     },
@@ -1267,10 +1438,10 @@ Respond with ONLY raw JSON (no markdown fences):
       "id": "q6",
       "type": "Scenario",
       "difficulty": "Hard",
-      "scenario": "Consider this situation...",
-      "question": "What would you do...",
-      "correctAnswer": "Expected approach...",
-      "explanation": "Based on the document...",
+      "scenario": "Consider this realistic situation that tests application of document concepts...",
+      "question": "What would you do and why?",
+      "correctAnswer": "Expected approach with reasoning...",
+      "explanation": "Based on the document's methodology or principles...",
       "topic": "Practical Application",
       "learningObjective": "Apply document concepts to a real-world scenario"
     },
@@ -1278,9 +1449,9 @@ Respond with ONLY raw JSON (no markdown fences):
       "id": "q7",
       "type": "Concept",
       "difficulty": "Medium",
-      "question": "Explain the concept of...",
-      "correctAnswer": "The concept definition...",
-      "explanation": "Why this concept is important...",
+      "question": "Explain the concept of [core concept] as described in the document. Why is it significant?",
+      "correctAnswer": "Complete explanation showing understanding...",
+      "explanation": "Why this concept is important in the document's context...",
       "conceptName": "Name of the concept",
       "topic": "Core Concepts",
       "learningObjective": "Demonstrate understanding of a key concept from the document"
@@ -1289,10 +1460,10 @@ Respond with ONLY raw JSON (no markdown fences):
       "id": "q8",
       "type": "Application",
       "difficulty": "Hard",
-      "question": "How would you apply...",
-      "context": "A new situation or problem that requires applying knowledge from the document",
-      "correctAnswer": "The expected approach...",
-      "explanation": "Why this approach works...",
+      "question": "How would you apply the principles from this document to solve a new problem?",
+      "context": "A novel situation that requires adapting knowledge from the document",
+      "correctAnswer": "The expected approach showing adaptation of principles...",
+      "explanation": "Why this approach correctly applies the document's methodology...",
       "topic": "Knowledge Transfer",
       "learningObjective": "Apply learned concepts to solve a novel problem"
     }

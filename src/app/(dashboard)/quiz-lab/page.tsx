@@ -80,6 +80,10 @@ export default function QuizLab() {
   const [submittingScore, setSubmittingScore] = useState(false);
   const [finalAccuracy, setFinalAccuracy] = useState(0);
 
+  // Match question state (moved to top level, NOT inside renderMatch - violates Rules of Hooks)
+  const [activeLeft, setActiveLeft] = useState<string | null>(null);
+  const [correctCount, setCorrectCount] = useState(0);
+
   const burstDistances = useMemo(() => {
     return [...Array(16)].map(() => 80 + Math.random() * 120);
   }, []);
@@ -221,6 +225,7 @@ export default function QuizLab() {
       setIsSubmitted(true);
       const correct = !isTimeout && checkAnswer();
       if (correct) {
+        setCorrectCount((c) => c + 1);
         const points = qType === "Scenario" || qType === "Application" ? 200 : qType === "ShortAnswer" || qType === "Concept" ? 150 : 100;
         setScore((s) => s + points * multiplier);
         setStreak((s) => s + 1);
@@ -244,6 +249,7 @@ export default function QuizLab() {
     setShortAnswer("");
     setMatchSelections({});
     setShowWrongExplanations(false);
+    setActiveLeft(null);
 
     if (currentQIndex < questions.length - 1) {
       setCurrentQIndex((c) => c + 1);
@@ -255,11 +261,7 @@ export default function QuizLab() {
       setGameState("summary");
       setSubmittingScore(true);
       try {
-        const maxScore = questions.reduce((acc: number, q: any) => {
-          const pts = q.type === "Scenario" || q.type === "Application" ? 200 : q.type === "ShortAnswer" || q.type === "Concept" ? 150 : 100;
-          return acc + pts;
-        }, 0);
-        const accuracy = Math.round((score / maxScore) * 100) || 0;
+        const accuracy = questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 0;
         setFinalAccuracy(accuracy);
         await fetch("/api/quizzes", {
           method: "POST",
@@ -290,6 +292,8 @@ export default function QuizLab() {
     setShortAnswer("");
     setMatchSelections({});
     setShowWrongExplanations(false);
+    setActiveLeft(null);
+    setCorrectCount(0);
     setGameState("playing");
     // Set initial timer based on first question type
     const firstQ = (() => { try { return JSON.parse(quiz.questions)[0]; } catch { return null; } })();
@@ -373,7 +377,7 @@ export default function QuizLab() {
               className="text-xs font-semibold text-text-muted hover:text-text-secondary flex items-center gap-2 cursor-pointer transition-colors"
             >
               <ChevronRight className={`w-3.5 h-3.5 transition-transform ${showWrongExplanations ? "rotate-90" : ""}`} />
-              {showWrongExplanations ? "Hide" : "Show"} why other options are wrong
+              {showWrongExplanations ? "Hide" : "Show"} detailed answer analysis
             </button>
             <AnimatePresence>
               {showWrongExplanations && (
@@ -383,15 +387,27 @@ export default function QuizLab() {
                   exit={{ height: 0, opacity: 0 }}
                   className="overflow-hidden mt-3 space-y-2"
                 >
-                  {Object.entries(question.wrongOptionExplanations).map(([opt, explanation]: [string, any]) => (
-                    <div key={opt} className="flex gap-3 p-3 rounded-xl" style={{ background: "rgba(239, 68, 68, 0.04)", border: "1px solid rgba(239, 68, 68, 0.1)" }}>
-                      <XCircle className="w-4 h-4 text-danger shrink-0 mt-0.5" />
+                  {Object.entries(question.wrongOptionExplanations).map(([opt, explanation]: [string, any]) => {
+                    const isCorrectOpt = question.correctAnswer === opt || question.options?.[question.correctAnswer] === opt;
+                    return isCorrectOpt ? null : (
+                      <div key={opt} className="flex gap-3 p-3 rounded-xl" style={{ background: "rgba(239, 68, 68, 0.04)", border: "1px solid rgba(239, 68, 68, 0.1)" }}>
+                        <XCircle className="w-4 h-4 text-danger shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-xs font-semibold text-text-muted mb-1">{opt}</p>
+                          <p className="text-xs text-text-ghost leading-relaxed">{explanation}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {question.whyCorrectIsCorrect && (
+                    <div className="flex gap-3 p-3 rounded-xl" style={{ background: "rgba(0, 245, 212, 0.04)", border: "1px solid rgba(0, 245, 212, 0.15)" }}>
+                      <CheckCircle2 className="w-4 h-4 text-neural-cyan shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-xs font-semibold text-text-muted mb-1">{opt}</p>
-                        <p className="text-xs text-text-ghost leading-relaxed">{explanation}</p>
+                        <p className="text-xs font-semibold text-neural-cyan mb-1">{question.correctAnswer}</p>
+                        <p className="text-xs text-text-ghost leading-relaxed">{question.whyCorrectIsCorrect}</p>
                       </div>
                     </div>
-                  ))}
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
@@ -477,7 +493,6 @@ export default function QuizLab() {
   const renderMatch = () => {
     if (!question?.matchPairs) return null;
     const rightOptions = [...question.matchPairs.map((p: any) => p.right)].sort(() => Math.random() - 0.5);
-    const [activeLeft, setActiveLeft] = useState<string | null>(null);
 
     const handleMatchSelect = (right: string) => {
       if (isSubmitted || !activeLeft) return;
@@ -954,15 +969,31 @@ export default function QuizLab() {
                       <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="p-6 rounded-2xl border border-neural-cyan/20 bg-neural-cyan/[0.03] space-y-2 relative"
+                        className="space-y-3"
                       >
-                        <div className="absolute top-0 left-0 w-1 h-full bg-neural-cyan rounded-l-2xl" />
-                        <h4 className="font-display font-bold text-text-primary flex items-center gap-2 text-sm uppercase tracking-wider text-neural-cyan">
-                          <BrainCircuit className="w-4 h-4" /> Explanation
-                        </h4>
-                        <p className="text-sm text-text-secondary leading-relaxed font-light whitespace-pre-line">
-                          {question.explanation}
-                        </p>
+                        {/* whyCorrectIsCorrect section */}
+                        {question.whyCorrectIsCorrect && (
+                          <div className="p-5 rounded-2xl border border-neural-cyan/20 bg-neural-cyan/[0.03] space-y-2 relative">
+                            <div className="absolute top-0 left-0 w-1 h-full bg-neural-cyan rounded-l-2xl" />
+                            <h4 className="font-display font-bold flex items-center gap-2 text-sm uppercase tracking-wider text-neural-cyan">
+                              <CheckCircle2 className="w-4 h-4" /> Why This Answer Is Correct
+                            </h4>
+                            <p className="text-sm text-text-secondary leading-relaxed font-light">
+                              {question.whyCorrectIsCorrect}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* General explanation */}
+                        <div className="p-5 rounded-2xl border border-white/10 bg-white/[0.02] space-y-2 relative">
+                          <div className="absolute top-0 left-0 w-1 h-full bg-white/30 rounded-l-2xl" />
+                          <h4 className="font-display font-bold flex items-center gap-2 text-sm uppercase tracking-wider text-text-muted">
+                            <BrainCircuit className="w-4 h-4" /> Explanation
+                          </h4>
+                          <p className="text-sm text-text-secondary leading-relaxed font-light whitespace-pre-line">
+                            {question.explanation}
+                          </p>
+                        </div>
                       </motion.div>
                     )}
                   </AnimatePresence>

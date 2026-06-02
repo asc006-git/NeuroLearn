@@ -66,11 +66,14 @@ export async function GET(req: NextRequest) {
     const efficiency = avgQuizAccuracy > 0 ? `+${Math.round(avgQuizAccuracy / 15)}%` : "0%";
 
     // Build activity data from sessions, fill gaps with empty days
-    const sessionDays = user.sessions.slice(0, 14).map((s) => ({
-      name: new Date(s.createdAt).toLocaleDateString("en-US", { weekday: "short" }),
-      hours: Math.max(0.1, parseFloat((parseInt(s.duration || "0") / 60).toFixed(1))),
-      neuralActivity: s.score || 40,
-    }));
+    const sessionDays = user.sessions.slice(0, 14).map((s) => {
+      const durationNum = parseInt((s.duration || "0").replace(/[^0-9]/g, "")) || 0;
+      return {
+        name: new Date(s.createdAt).toLocaleDateString("en-US", { weekday: "short" }),
+        hours: Math.max(0.1, parseFloat((durationNum / 60).toFixed(1))),
+        neuralActivity: s.score || 40,
+      };
+    });
     const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     const activityData = dayNames.map((day) => {
       const match = sessionDays.find((s) => s.name === day);

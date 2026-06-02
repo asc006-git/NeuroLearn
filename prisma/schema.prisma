@@ -102,6 +102,12 @@ model Summary {
   documentId       String
   title            String
   documentType     String            @default("Study Material") // Research Paper, Project Report, Notes, Technical Document, Book Chapter, Study Material
+  projectObjective String?           @db.Text // Core objective of the document (2-4 sentences)
+  keyFindings      String?           @db.Text // Serialized JSON array of key finding strings
+  architecture     String?           @db.Text // System architecture or document structure description
+  methodology      String?           @db.Text // Methodology or approach description
+  results          String?           @db.Text // Results or outcomes description
+  conclusion       String?           @db.Text // Conclusion and implications
   executiveBrief   String            @db.Text
   detailedSummary  String?           @db.Text // Expanded multi-paragraph analysis
   keyInsights      String?           @db.Text // Serialized JSON array of insight strings
