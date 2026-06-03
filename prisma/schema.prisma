@@ -119,6 +119,11 @@ model Summary {
   technologyStack  String?           @db.Text // Serialized JSON array of detected tech {name, category, context}
   revisionNotes    String?           @db.Text // Exam-oriented important points
   chapterSummaries String?           @db.Text // Serialized JSON array of {heading, summary} objects
+  advantages       String?           @db.Text // Key advantages/benefits from the document
+  limitations      String?           @db.Text // Limitations or drawbacks mentioned
+  futureScope      String?           @db.Text // Future work or scope for improvement
+  tldr             String?           @db.Text // One-sentence TLDR / bottom line
+  examples         String?           @db.Text // Key examples from the document (serialized JSON array)
   generatedAt      DateTime          @default(now())
   document         Document          @relation(fields: [documentId], references: [id], onDelete: Cascade)
   quizzes          Quiz[]
@@ -180,12 +185,15 @@ model Analytics {
   quizzesTaken    Int      @default(0)
   date            DateTime @default(now())
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@index([userId])
 }
 
 model UserPreferences {
   id           String   @id @default(uuid())
   userId       String   @unique
-  intensity    Int      @default(2) // 1 = Fast, 2 = Balanced, 3 = Deep
+  intensity    Int      @default(2)
   adaptive     Boolean  @default(true)
   voice        Boolean  @default(false)
   dark         Boolean  @default(true)
