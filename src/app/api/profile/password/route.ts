@@ -1,15 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { requireAuth } from "@/lib/api-auth";
+import { rateLimit } from "@/lib/rate-limit";
 import bcrypt from "bcryptjs";
+import { validatePassword } from "@/lib/password-validation";
 
 export async function PUT(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
+    const { allowed, retryAfter } = rateLimit(`password-change:${ip}`, 3, 60000);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: `Too many attempts. Try again in ${retryAfter} seconds.` },
+        { status: 429 }
+      );
     }
+
+    const { user, error } = await requireAuth();
+    if (error) return error;
 
     const { currentPassword, newPassword } = await req.json();
 
@@ -17,16 +25,17 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    if (newPassword.length < 6) {
-      return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
+    const passwordError = validatePassword(newPassword);
+    if (passwordError) {
+      return NextResponse.json({ error: passwordError }, { status: 400 });
     }
 
-    const user = await prisma.user.findUnique({ where: { email: session.user.email } });
-    if (!user || !user.hashedPassword) {
+    const fullUser = await prisma.user.findUnique({ where: { id: user.id } });
+    if (!fullUser || !fullUser.hashedPassword) {
       return NextResponse.json({ error: "Account does not support password login" }, { status: 400 });
     }
 
-    const isValid = await bcrypt.compare(currentPassword, user.hashedPassword);
+    const isValid = await bcrypt.compare(currentPassword, fullUser.hashedPassword);
     if (!isValid) {
       return NextResponse.json({ error: "Current password is incorrect" }, { status: 401 });
     }

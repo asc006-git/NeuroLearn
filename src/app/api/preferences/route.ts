@@ -1,54 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { requireAuth } from "@/lib/api-auth";
 
 export async function PUT(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { user, error } = await requireAuth();
+    if (error) return error;
 
     const body = await req.json();
     const {
-      theme,
+      dark,
       accentColor,
-      processingIntensity,
-      adaptiveQuiz,
-      voiceMode,
-      emailNotifications,
-      pushNotifications,
+      intensity,
+      adaptive,
+      voice,
+      emailAlerts,
+      pushAlerts,
     } = body;
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
 
     const preferences = await prisma.userPreferences.upsert({
       where: { userId: user.id },
       create: {
         userId: user.id,
-        theme: theme || "dark",
-        accentColor: accentColor || "#00ff88",
-        processingIntensity: processingIntensity ?? 5,
-        adaptiveQuiz: adaptiveQuiz ?? true,
-        voiceMode: voiceMode ?? false,
-        emailNotifications: emailNotifications ?? true,
-        pushNotifications: pushNotifications ?? true,
+        dark: dark ?? true,
+        accentColor: accentColor || "#00F5D4",
+        intensity: intensity ?? 2,
+        adaptive: adaptive ?? true,
+        voice: voice ?? false,
+        emailAlerts: emailAlerts ?? true,
+        pushAlerts: pushAlerts ?? true,
       },
       update: {
-        ...(theme !== undefined && { theme }),
+        ...(dark !== undefined && { dark }),
         ...(accentColor !== undefined && { accentColor }),
-        ...(processingIntensity !== undefined && { processingIntensity }),
-        ...(adaptiveQuiz !== undefined && { adaptiveQuiz }),
-        ...(voiceMode !== undefined && { voiceMode }),
-        ...(emailNotifications !== undefined && { emailNotifications }),
-        ...(pushNotifications !== undefined && { pushNotifications }),
+        ...(intensity !== undefined && { intensity }),
+        ...(adaptive !== undefined && { adaptive }),
+        ...(voice !== undefined && { voice }),
+        ...(emailAlerts !== undefined && { emailAlerts }),
+        ...(pushAlerts !== undefined && { pushAlerts }),
       },
     });
 
@@ -61,21 +50,15 @@ export async function PUT(req: NextRequest) {
 
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const { user, error } = await requireAuth();
+    if (error) return error;
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+    const userWithPrefs = await prisma.user.findUnique({
+      where: { id: user.id },
       include: { preferences: true },
     });
 
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    return NextResponse.json({ preferences: user.preferences });
+    return NextResponse.json({ preferences: userWithPrefs?.preferences });
   } catch (error) {
     console.error("[Preferences API] Get error:", error);
     return NextResponse.json({ error: "Failed to fetch preferences" }, { status: 500 });
