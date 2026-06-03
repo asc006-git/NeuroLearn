@@ -1,17 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { requireAuth } from "@/lib/api-auth";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user || !session.user.email) {
-      return NextResponse.json({ error: "Unauthorized access detected." }, { status: 401 });
-    }
+    const { user, error } = await requireAuth();
+    if (error) return error;
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
+    const userData = await prisma.user.findUnique({
+      where: { id: user.id },
       include: {
         documents: {
           include: {
@@ -23,11 +20,7 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    if (!user) {
-      return NextResponse.json({ error: "User profile not found." }, { status: 404 });
-    }
-
-    const quizzesList = user.documents.flatMap((doc) =>
+    const quizzesList = (userData?.documents || []).flatMap((doc) =>
       doc.summaries.flatMap((sum) =>
         sum.quizzes.map((quiz) => ({
           ...quiz,
@@ -49,20 +42,13 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user || !session.user.email) {
-      return NextResponse.json({ error: "Unauthorized access detected." }, { status: 401 });
-    }
+    const { user, error } = await requireAuth();
+    if (error) return error;
 
-    const { quizId, score, duration } = await req.json();
+    const { quizId, score, points, duration } = await req.json();
 
     if (!quizId || score === undefined) {
       return NextResponse.json({ error: "Missing required session parameters." }, { status: 400 });
-    }
-
-    const user = await prisma.user.findUnique({ where: { email: session.user.email } });
-    if (!user) {
-      return NextResponse.json({ error: "User profile not found." }, { status: 404 });
     }
 
     const quiz = await prisma.quiz.findUnique({
@@ -76,13 +62,11 @@ export async function POST(req: NextRequest) {
 
     const docTitle = quiz.summary.document.title.replace(/\.[^/.]+$/, "");
 
-    // Update the Quiz record with the score
     await prisma.quiz.update({
       where: { id: quizId },
       data: { score },
     });
 
-    // Record learning session using actual schema fields
     const learningSession = await prisma.learningSession.create({
       data: {
         userId: user.id,
@@ -95,7 +79,6 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Update analytics using actual schema fields
     const analytics = await prisma.analytics.findFirst({ where: { userId: user.id } });
 
     if (analytics) {
@@ -105,6 +88,7 @@ export async function POST(req: NextRequest) {
           studyMinutes: analytics.studyMinutes + (duration || 1),
           quizzesTaken: analytics.quizzesTaken + 1,
           retentionRating: Math.round((analytics.retentionRating + score) / 2),
+          cognitiveScore: analytics.cognitiveScore + (points || 0),
         },
       });
     } else {
@@ -114,6 +98,7 @@ export async function POST(req: NextRequest) {
           studyMinutes: duration || 1,
           quizzesTaken: 1,
           retentionRating: score,
+          cognitiveScore: points || 0,
         },
       });
     }

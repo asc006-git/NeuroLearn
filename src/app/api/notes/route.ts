@@ -1,27 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { requireAuth } from "@/lib/api-auth";
+import { z } from "zod";
+import { sanitizeInput } from "@/lib/utils";
+
+const createNoteSchema = z.object({
+  title: z.string().min(1).max(500),
+  content: z.string().min(1).max(50000),
+  type: z.string().max(50).optional(),
+  tags: z.string().max(500).optional(),
+  summaryId: z.string().optional(),
+});
+
+const updateNoteSchema = z.object({
+  id: z.string(),
+  title: z.string().min(1).max(500).optional(),
+  content: z.string().min(1).max(50000).optional(),
+  type: z.string().max(50).optional(),
+  tags: z.string().max(500).optional(),
+  pinned: z.boolean().optional(),
+});
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
+    const { user, error } = await requireAuth();
+    if (error) return error;
 
     const { searchParams } = new URL(req.url);
     const type = searchParams.get("type");
     const summaryId = searchParams.get("summaryId");
     const search = searchParams.get("search");
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "50")));
 
     const where: any = { userId: user.id };
     if (type) where.type = type;
@@ -33,12 +43,17 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    const notes = await prisma.note.findMany({
-      where,
-      orderBy: [{ pinned: "desc" }, { updatedAt: "desc" }],
-    });
+    const [notes, total] = await Promise.all([
+      prisma.note.findMany({
+        where,
+        orderBy: [{ pinned: "desc" }, { updatedAt: "desc" }],
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.note.count({ where }),
+    ]);
 
-    return NextResponse.json({ notes });
+    return NextResponse.json({ notes, total, page, limit });
   } catch (error) {
     console.error("[NOTES API] Error fetching notes:", error);
     return NextResponse.json({ error: "Failed to fetch notes" }, { status: 500 });
@@ -47,34 +62,21 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
+    const { user, error } = await requireAuth();
+    if (error) return error;
 
     const body = await req.json();
-    const { title, content, type, tags, summaryId } = body;
-
-    if (!title || !content) {
-      return NextResponse.json({ error: "Title and content are required" }, { status: 400 });
-    }
+    const parsed = createNoteSchema.parse(body);
+    const { title, content, type, tags, summaryId } = parsed;
 
     const note = await prisma.note.create({
       data: {
         userId: user.id,
-        title,
-        content,
-        type: type || "user",
+        title: sanitizeInput(title),
+        content: sanitizeInput(content),
+        type: type ? sanitizeInput(type) : "user",
         source: "user-created",
-        tags: tags || "",
+        tags: tags ? sanitizeInput(tags) : "",
         summaryId: summaryId || null,
       },
     });
@@ -88,25 +90,12 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
+    const { user, error } = await requireAuth();
+    if (error) return error;
 
     const body = await req.json();
-    const { id, title, content, type, tags, pinned } = body;
-
-    if (!id) {
-      return NextResponse.json({ error: "Note ID is required" }, { status: 400 });
-    }
+    const parsed = updateNoteSchema.parse(body);
+    const { id, title, content, type, tags, pinned } = parsed;
 
     const existing = await prisma.note.findUnique({ where: { id } });
     if (!existing || existing.userId !== user.id) {
@@ -116,10 +105,10 @@ export async function PUT(req: NextRequest) {
     const note = await prisma.note.update({
       where: { id },
       data: {
-        ...(title !== undefined && { title }),
-        ...(content !== undefined && { content }),
-        ...(type !== undefined && { type }),
-        ...(tags !== undefined && { tags }),
+        ...(title !== undefined && { title: sanitizeInput(title) }),
+        ...(content !== undefined && { content: sanitizeInput(content) }),
+        ...(type !== undefined && { type: sanitizeInput(type) }),
+        ...(tags !== undefined && { tags: sanitizeInput(tags) }),
         ...(pinned !== undefined && { pinned }),
       },
     });
@@ -133,18 +122,8 @@ export async function PUT(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
+    const { user, error } = await requireAuth();
+    if (error) return error;
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
