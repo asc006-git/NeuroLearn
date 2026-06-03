@@ -1,32 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { requireAuth } from "@/lib/api-auth";
+import { promises as fs } from "fs";
+import path from "path";
 
-// GET user's documents
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user || !session.user.email) {
-      return NextResponse.json({ error: "Unauthorized access detected." }, { status: 401 });
-    }
+    const { user, error } = await requireAuth();
+    if (error) return error;
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      include: {
-        documents: {
-          orderBy: { uploadedAt: "desc" },
+    const { searchParams } = new URL(req.url);
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "20")));
+
+    const [documents, total] = await Promise.all([
+      prisma.document.findMany({
+        where: { userId: user.id },
+        orderBy: { uploadedAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          title: true,
+          fileUrl: true,
+          processingStatus: true,
+          uploadedAt: true,
+          userId: true,
         },
-      },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: "User profile not found." }, { status: 404 });
-    }
+      }),
+      prisma.document.count({ where: { userId: user.id } }),
+    ]);
 
     return NextResponse.json({
       success: true,
-      documents: user.documents,
+      documents,
+      total,
+      page,
+      limit,
     });
   } catch (error: any) {
     console.error("GET Documents Error:", error);
@@ -40,10 +50,8 @@ export async function GET(req: NextRequest) {
 // DELETE a document
 export async function DELETE(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user || !session.user.email) {
-      return NextResponse.json({ error: "Unauthorized access detected." }, { status: 401 });
-    }
+    const { user, error } = await requireAuth();
+    if (error) return error;
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
@@ -52,24 +60,52 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "Document ID parameter is required." }, { status: 400 });
     }
 
-    // Retrieve document and verify owner
-    const document = await prisma.document.findUnique({
-      where: { id },
-      include: { user: true },
-    });
+    const document = await prisma.document.findUnique({ where: { id } });
 
     if (!document) {
       return NextResponse.json({ error: "Document not found." }, { status: 404 });
     }
 
-    if (document.user.email !== session.user.email) {
+    if (document.userId !== user.id) {
       return NextResponse.json({ error: "Access denied. Cannot delete another user's materials." }, { status: 403 });
     }
 
-    // Delete in transactional cascade if Prisma does not handle it cleanly
-    await prisma.document.delete({
-      where: { id },
+    // 1. Fetch summaries to cascade-delete linked notes
+    const summaries = await prisma.summary.findMany({
+      where: { documentId: id },
+      select: { id: true }
     });
+    const summaryIds = summaries.map((s) => s.id);
+
+    if (summaryIds.length > 0) {
+      await prisma.note.deleteMany({
+        where: { summaryId: { in: summaryIds } }
+      });
+    }
+
+    // 2. Delete knowledge map nodes associated with this document
+    const cleanTitle = document.title.replace(/\.[^/.]+$/, "");
+    await prisma.knowledgeMap.deleteMany({
+      where: { userId: user.id, category: cleanTitle }
+    });
+
+    // 3. Delete physical file from disk
+    const filename = path.basename(document.fileUrl);
+    const privatePath = path.join(process.cwd(), "private", "uploads", filename);
+    const publicPath = path.join(process.cwd(), "public", "uploads", filename);
+
+    try {
+      await fs.unlink(privatePath);
+    } catch {
+      try {
+        await fs.unlink(publicPath);
+      } catch (err) {
+        console.warn(`[Delete API] Physical file delete failed for ${filename}:`, err);
+      }
+    }
+
+    // 4. Finally delete the Document (cascades to summaries, quizzes, statusLogs, extraction)
+    await prisma.document.delete({ where: { id } });
 
     return NextResponse.json({
       success: true,

@@ -1,11 +1,12 @@
 import { NextRequest } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
+import { requireAuth } from "@/lib/api-auth";
 import { prisma } from "@/lib/db";
 import { cleanText, generateSummary, generateQuiz } from "@/lib/ai-engine";
+import { rateLimit } from "@/lib/rate-limit";
 import path from "path";
 import { pathToFileURL } from "url";
 import fs from "fs/promises";
+import { generateRedesignedKnowledgeMap } from "@/lib/knowledge-map-generator";
 
 // ═══════════════════════════════════════════════════════════════
 // NEUROLEARN — Unified Document Ingestion Pipeline
@@ -15,22 +16,22 @@ import fs from "fs/promises";
 
 export async function POST(req: NextRequest) {
   try {
-    // ─── Authenticate ───────────────────────────────────────
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
+    const { allowed, retryAfter } = rateLimit(`upload:${ip}`, 10, 60000);
+    if (!allowed) {
       return new Response(
-        JSON.stringify({ error: "Unauthorized access detected." }),
-        { status: 401, headers: { "Content-Type": "application/json" } }
+        JSON.stringify({ error: `Upload rate limit exceeded. Try again in ${retryAfter} seconds.` }),
+        { status: 429, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
-    if (!user) {
+    // ─── Authenticate ───────────────────────────────────────
+    const { user, error } = await requireAuth();
+    if (error) {
+      const body = await error.json();
       return new Response(
-        JSON.stringify({ error: "User profile not found." }),
-        { status: 404, headers: { "Content-Type": "application/json" } }
+        JSON.stringify(body),
+        { status: error.status, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -48,6 +49,13 @@ export async function POST(req: NextRequest) {
     if (!file.name.toLowerCase().endsWith(".pdf")) {
       return new Response(
         JSON.stringify({ error: "Only PDF files are supported for neural ingestion." }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
+    if (file.size > 20 * 1024 * 1024) {
+      return new Response(
+        JSON.stringify({ error: "File size exceeds the 20MB limit." }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -84,8 +92,8 @@ export async function POST(req: NextRequest) {
           // ── Stage 1: Uploading ────────────────────────────
           send("reading", `Initializing ingestion pipeline for ${file.name}...`);
 
-          // Save physical file
-          const uploadsDir = path.join(process.cwd(), "public", "uploads");
+          // Save physical file (secured: outside public dir to prevent direct access)
+          const uploadsDir = path.join(process.cwd(), "private", "uploads");
           await fs.mkdir(uploadsDir, { recursive: true });
 
           // Generate unique filename to avoid collisions
@@ -99,7 +107,7 @@ export async function POST(req: NextRequest) {
             data: {
               userId: user.id,
               title: file.name,
-              fileUrl: `/uploads/${safeFilename}`,
+              fileUrl: `/api/uploads/${safeFilename}`,
               extractedText: "", // Will be populated after extraction
               processingStatus: "Uploading",
             },
@@ -185,6 +193,11 @@ export async function POST(req: NextRequest) {
               technologyStack: JSON.stringify(summaryResult.technologyStack),
               revisionNotes: summaryResult.revisionNotes,
               chapterSummaries: JSON.stringify(summaryResult.chapterSummaries),
+              advantages: summaryResult.advantages || null,
+              limitations: summaryResult.limitations || null,
+              futureScope: summaryResult.futureScope || null,
+              tldr: summaryResult.tldr || null,
+              examples: JSON.stringify(summaryResult.examples || []),
             },
           });
 
@@ -199,9 +212,25 @@ export async function POST(req: NextRequest) {
               ? (typeof summaryResult.definitions === "string"
                 ? JSON.parse(summaryResult.definitions) : summaryResult.definitions)
               : [];
+            const parsedTech = summaryResult.technologyStack
+              ? (typeof summaryResult.technologyStack === "string"
+                ? JSON.parse(summaryResult.technologyStack) : summaryResult.technologyStack)
+              : [];
 
+            const cleanTitle = file.name.replace(/\.[^/.]+$/, "");
+
+            // Helper to filter low-quality keywords
+            const isLowQuality = (name: string) => {
+              if (!name) return true;
+              const normalized = name.trim().toLowerCase();
+              const blocklist = ["and", "the", "platform", "system", "a", "an", "of", "to", "in", "for", "with", "on", "at", "by", "from", "it", "its", "this", "that", "these", "those", "details", "generic", "filler"];
+              return blocklist.includes(normalized) || normalized.length < 2;
+            };
+
+            // Create Concept notes
             if (Array.isArray(parsedConcepts)) {
               for (const concept of parsedConcepts) {
+                if (isLowQuality(concept.name)) continue;
                 const noteText = `${concept.explanation || ""}${concept.importance ? `\n\nImportance: ${concept.importance}` : ""}`;
                 if (concept.name && noteText.trim()) {
                   await prisma.note.create({
@@ -211,10 +240,12 @@ export async function POST(req: NextRequest) {
               }
             }
 
+            // Create Definition notes
             if (Array.isArray(parsedDefinitions)) {
               for (const def of parsedDefinitions) {
-                const term = def.term || def.name;
-                const defText = def.definition || def.def;
+                const term = def.term || (def as any).name;
+                const defText = def.definition || (def as any).def;
+                if (isLowQuality(term)) continue;
                 if (term && defText) {
                   await prisma.note.create({
                     data: { userId: user.id, summaryId: summary.id, title: term, content: defText, type: "definition", source: "AI-generated", tags: "definition, ai-generated" },
@@ -223,6 +254,29 @@ export async function POST(req: NextRequest) {
               }
             }
 
+            // Create Technology / AI Component notes
+            if (Array.isArray(parsedTech)) {
+              for (const tech of parsedTech) {
+                if (isLowQuality(tech.name)) continue;
+                const noteText = `${tech.context || ""}${tech.category ? `\n\nCategory: ${tech.category}` : ""}`;
+                if (tech.name && noteText.trim()) {
+                  const isAIComponent = ["ai/ml", "ai", "ml", "nlp", "llm", "ai-engine"].includes(tech.category?.toLowerCase() || "");
+                  const noteType = isAIComponent ? "ai_component" : "technology";
+                  await prisma.note.create({
+                    data: { userId: user.id, summaryId: summary.id, title: tech.name, content: noteText.trim(), type: noteType, source: "AI-generated", tags: `${noteType}, ai-generated` },
+                  }).catch(() => {});
+                }
+              }
+            }
+
+            // Create Architecture notes
+            if (summaryResult.architecture && summaryResult.architecture.trim()) {
+              await prisma.note.create({
+                data: { userId: user.id, summaryId: summary.id, title: `${cleanTitle} - Architecture`, content: summaryResult.architecture.trim(), type: "architecture", source: "AI-generated", tags: "architecture, ai-generated" },
+              }).catch(() => {});
+            }
+
+            // Create Revision notes
             if (summaryResult.revisionNotes && summaryResult.revisionNotes.trim()) {
               const title = `${summaryResult.title || "Document"} - Revision Notes`;
               await prisma.note.create({
@@ -251,48 +305,7 @@ export async function POST(req: NextRequest) {
 
           // ── Stage 7: Generate Knowledge Map ────────────────
           try {
-            const parsedConcepts = typeof summaryResult.concepts === "string"
-              ? JSON.parse(summaryResult.concepts)
-              : summaryResult.concepts;
-            if (Array.isArray(parsedConcepts) && parsedConcepts.length > 0) {
-              const colors = ["#FF8A00", "#00F5D4", "#38BDF8", "#8B5CF6"];
-              const centerX = 50;
-              const centerY = 50;
-              const angleStep = (2 * Math.PI) / parsedConcepts.length;
-              const createdNodes: any[] = [];
-              for (let i = 0; i < parsedConcepts.length; i++) {
-                const concept = parsedConcepts[i];
-                const angle = i * angleStep;
-                const radius = 15 + Math.random() * 10;
-                const node = await prisma.knowledgeMap.create({
-                  data: {
-                    userId: user.id,
-                    topic: concept.term || concept.topic || `Concept ${i + 1}`,
-                    category: concept.category || cleanTitle,
-                    relevance: concept.relevance || Math.round(70 + Math.random() * 30),
-                    color: colors[i % colors.length],
-                    points: JSON.stringify(concept.points || [concept.definition || `Key concept from ${cleanTitle}`]),
-                    connections: "[]",
-                    x: centerX + radius * Math.cos(angle),
-                    y: centerY + radius * Math.sin(angle),
-                  },
-                });
-                createdNodes.push(node);
-              }
-
-              // Update connections to actual created node UUIDs
-              for (let i = 0; i < createdNodes.length; i++) {
-                if (createdNodes.length > 1) {
-                  const nextNode = createdNodes[(i + 1) % createdNodes.length];
-                  await prisma.knowledgeMap.update({
-                    where: { id: createdNodes[i].id },
-                    data: {
-                      connections: JSON.stringify([nextNode.id]),
-                    },
-                  });
-                }
-              }
-            }
+            await generateRedesignedKnowledgeMap(user.id, documentId, summaryResult, file.name, summary.id);
           } catch (kmError) {
             console.error("[Knowledge Map Generation Error]", kmError);
           }
@@ -343,6 +356,9 @@ export async function POST(req: NextRequest) {
             text_length: cleanedText.length,
             chunks: [],
             ocr_used: false,
+            documentId,
+            summaryId: summary.id,
+            quizId: quiz.id,
           });
         } catch (err: any) {
           console.error("[Upload Pipeline Error]", err);
