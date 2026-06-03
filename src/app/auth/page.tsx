@@ -34,11 +34,13 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [csrfToken, setCsrfToken] = useState("");
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    fetch("/api/csrf").then(r => r.json()).then(d => setCsrfToken(d.csrfToken)).catch(() => {});
   }, []);
 
   // Precompute left-side atmospheric particles (reduced from 8 to 4 for performance)
@@ -77,7 +79,7 @@ export default function Auth() {
         // Forgot Password
         const response = await fetch("/api/auth/forgot-password", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "x-csrf-token": csrfToken },
           body: JSON.stringify({ email }),
         });
 
@@ -108,7 +110,7 @@ export default function Auth() {
         // Sign Up
         const response = await fetch("/api/auth/signup", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "x-csrf-token": csrfToken },
           body: JSON.stringify({ name, email, password }),
         });
 
@@ -452,7 +454,7 @@ export default function Auth() {
                 {!isLogin && (
                   <div className="flex items-center gap-1.5 pt-0.5 pl-1">
                     <ShieldCheck className="w-3.5 h-3.5 text-neural-cyan" />
-                    <span className="text-[10px] text-text-ghost">Minimum 6 characters required.</span>
+                    <span className="text-[10px] text-text-ghost">Minimum 8 characters, uppercase, lowercase &amp; number required.</span>
                   </div>
                 )}
               </div>

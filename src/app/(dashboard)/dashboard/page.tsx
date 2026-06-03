@@ -119,24 +119,32 @@ export default function Dashboard() {
   const [isMounted, setIsMounted] = useState(false);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [showUploadModal, setShowUploadModal] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
+    let cancelled = false;
     async function fetchDashboard() {
       try {
         const res = await fetch("/api/dashboard");
-        if (res.ok) {
-          const json = await res.json();
-          setData(json.data);
+        if (!cancelled) {
+          if (res.ok) {
+            const json = await res.json();
+            setData(json?.data || null);
+          } else {
+            setFetchError(true);
+          }
         }
       } catch (err) {
         console.error("Dashboard fetch error:", err);
+        if (!cancelled) setFetchError(true);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     fetchDashboard();
+    return () => { cancelled = true; };
   }, []);
 
   const metrics = data?.metrics || {
@@ -147,6 +155,34 @@ export default function Dashboard() {
     accuracyRate: 0,
     sessionsCount: 0,
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-2 border-[#00F5D4] border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm font-semibold text-text-muted uppercase tracking-wider">Loading neural dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (fetchError && !data) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8">
+        <div className="w-16 h-16 rounded-2xl bg-danger/10 border border-danger/20 flex items-center justify-center mb-4">
+          <BrainCircuit className="w-8 h-8 text-danger" />
+        </div>
+        <h2 className="text-xl font-bold text-text-primary mb-2">Neural Dashboard Offline</h2>
+        <p className="text-sm text-text-muted max-w-md mb-6">Could not load your dashboard metrics. The neural link may be temporarily offline.</p>
+        <button onClick={() => { setLoading(true); setFetchError(false); window.location.reload(); }}
+          className="px-6 py-3 rounded-xl text-sm font-semibold cursor-pointer"
+          style={{ background: "linear-gradient(135deg, #00F5D4, #38BDF8)", color: "#050816" }}>
+          Retry Neural Link
+        </button>
+      </div>
+    );
+  }
 
   const stats = [
     {
@@ -264,6 +300,7 @@ export default function Dashboard() {
               Upload Material
             </motion.button>
             <motion.button
+              onClick={() => window.location.href = "/smart-notes"}
               whileHover={{ scale: 1.04 }}
               whileTap={{ scale: 0.96 }}
               transition={springConfig}
@@ -473,49 +510,47 @@ export default function Dashboard() {
               <h3 className="text-lg font-display font-semibold text-text-primary">
                 Continue Learning
               </h3>
-              <button className="text-sm text-neural-cyan hover:text-electric-blue transition-colors">
+              <button onClick={() => window.location.href = "/documents"} className="text-sm text-neural-cyan hover:text-electric-blue transition-colors cursor-pointer">
                 View All
               </button>
             </div>
             <div className="space-y-2">
-              {(!data?.recentActivity || data.recentActivity.length === 0) ? (
+              {(!data?.latestDocuments || data.latestDocuments.length === 0) ? (
                 <div className="text-center py-8 text-xs text-text-ghost">
                   No learning sessions logged yet.<br/>Upload a source document above to begin mapping your workspace.
                 </div>
               ) : (
-                data.recentActivity.map((item: any, i: number) => {
-                  const isQuiz = item.type === "quiz";
-                  return (
-                    <motion.div
-                      key={item.id || i}
-                      whileHover={{ x: 4 }}
-                      transition={springConfig}
-                      className="flex items-center justify-between p-3.5 rounded-2xl hover:bg-white/5 transition-colors cursor-pointer group border border-transparent hover:border-white/5"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div
-                          className="p-2.5 rounded-xl border group-hover:scale-110 transition-transform"
-                          style={{
-                            background: "rgba(5, 8, 22, 0.8)",
-                            borderColor: "rgba(255,255,255,0.06)",
-                            color: isQuiz ? "#FF8A00" : "#8B5CF6",
-                          }}
-                        >
-                          {isQuiz ? <Target className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-text-primary line-clamp-1">
-                            {item.topic}
-                          </p>
-                          <p className="text-[11px] text-text-ghost mt-0.5 line-clamp-1">
-                            {item.description}
-                          </p>
-                        </div>
+                data.latestDocuments.map((doc: any, i: number) => (
+                  <motion.div
+                    key={doc.id || i}
+                    whileHover={{ x: 4 }}
+                    transition={springConfig}
+                    onClick={() => window.location.href = `/documents/${doc.id}`}
+                    className="flex items-center justify-between p-3.5 rounded-2xl hover:bg-white/5 transition-colors cursor-pointer group border border-transparent hover:border-white/5"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div
+                        className="p-2.5 rounded-xl border group-hover:scale-110 transition-transform"
+                        style={{
+                          background: "rgba(5, 8, 22, 0.8)",
+                          borderColor: "rgba(255,255,255,0.06)",
+                          color: doc.hasSummary ? "#00F5D4" : "#8B5CF6",
+                        }}
+                      >
+                        {doc.hasSummary ? <Target className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
                       </div>
-                      <ChevronRight className="w-4 h-4 text-text-muted opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0 shrink-0" />
-                    </motion.div>
-                  );
-                })
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-semibold text-text-primary line-clamp-1">
+                          {doc.title}
+                        </p>
+                        <p className="text-[11px] text-text-ghost mt-0.5 line-clamp-1">
+                          {doc.hasSummary ? `${doc.summaryCount} summary(ies) · ${doc.quizCount} quiz(zes)` : `Status: ${doc.status}`}
+                        </p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-text-muted opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0 shrink-0" />
+                  </motion.div>
+                ))
               )}
             </div>
           </div>
@@ -533,16 +568,18 @@ export default function Dashboard() {
                 <h3 className="text-lg font-display font-semibold text-text-primary">Smart Suggestion</h3>
               </div>
               <p className="text-sm text-text-secondary mb-6 leading-relaxed">
-                {data?.recentActivity?.[0]
-                  ? `Based on your recent activity in "${data.recentActivity[0].topic}", taking a practice quiz or reviewing related notes will help reinforce your understanding.`
+                {data?.latestDocuments?.[0]
+                  ? `Based on your latest document "${data?.latestDocuments?.[0]?.title || "Untitled"}", reviewing its summary, taking the quiz, or checking smart notes will reinforce your understanding.`
                   : metrics.documentsCount > 0
                     ? `You have ${metrics.documentsCount} document${metrics.documentsCount > 1 ? "s" : ""} uploaded. Try generating a quiz or reviewing your smart notes to test your knowledge.`
                     : "Upload your first document to start building your learning map."}
               </p>
-              <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} transition={springConfig}
-                className="w-full text-text-primary text-sm font-medium py-3 rounded-xl transition-all border border-white/10 hover:border-neural-cyan/30 flex items-center justify-center gap-2 group/btn"
+              <motion.button
+                onClick={() => window.location.href = data?.latestDocuments?.[0] ? `/documents/${data?.latestDocuments?.[0]?.id}` : "/documents"}
+                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} transition={springConfig}
+                className="w-full text-text-primary text-sm font-medium py-3 rounded-xl transition-all border border-white/10 hover:border-neural-cyan/30 flex items-center justify-center gap-2 group/btn cursor-pointer"
                 style={{ background: "rgba(11, 16, 32, 0.8)" }}>
-                {data?.recentActivity?.[0] ? "Continue Learning" : "Get Started"}
+                {data?.latestDocuments?.[0] ? "Continue Learning" : "Get Started"}
                 <ChevronRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
               </motion.button>
             </div>

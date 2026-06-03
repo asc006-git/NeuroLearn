@@ -20,6 +20,12 @@ export default function Error({
           The learning engine encountered an unexpected fault. Our systems have been
           notified and will investigate the disruption.
         </p>
+        {error && (
+          <div className="text-left bg-black/30 p-4 rounded-xl text-xs overflow-auto max-h-60 text-red-400 font-mono w-full max-w-lg border border-red-500/10">
+            <p className="font-bold mb-1">Error: {error.message}</p>
+            {error.stack && <pre className="whitespace-pre-wrap mt-2 text-[10px] leading-normal opacity-80">{error.stack}</pre>}
+          </div>
+        )}
         <button
           onClick={reset}
           className="inline-block font-semibold px-8 py-3 rounded-xl text-sm transition-all hover:scale-105 cursor-pointer"

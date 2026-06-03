@@ -42,6 +42,24 @@ export default function Documents() {
 
   useEffect(() => {
     fetchDocuments();
+    let cancelled = false;
+    const interval = setInterval(async () => {
+      if (cancelled) return;
+      try {
+        const res = await fetch("/api/documents");
+        if (res.ok && !cancelled) {
+          const json = await res.json();
+          const docs = json.documents || [];
+          setDocuments(docs);
+          const stillProcessing = docs.some((d: any) => {
+            const s = d.processingStatus || "Completed";
+            return s !== "Completed" && s !== "Failed" && s !== "completed" && s !== "error";
+          });
+          if (!stillProcessing) clearInterval(interval);
+        }
+      } catch {}
+    }, 3000);
+    return () => { cancelled = true; clearInterval(interval); };
   }, []);
 
   const handleDelete = async (id: string) => {
@@ -158,7 +176,7 @@ export default function Documents() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {group.documents.map((doc, docIdx) => {
                     const color = COLORS[docIdx % COLORS.length];
-                    const docSize = `${Math.round(doc.extractedText.length / 1024)} KB`;
+                    const docSize = doc.extractedText ? `${Math.round(doc.extractedText.length / 1024)} KB` : "PDF";
                     return (
                       <motion.div
                         key={doc.id}
@@ -247,6 +265,13 @@ export default function Documents() {
                             );
                           })()}
                           <div className="flex gap-2">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); window.open(doc.fileUrl + "?download=true", "_blank"); }}
+                              className="p-1.5 text-text-ghost hover:text-neural-cyan transition-colors cursor-pointer"
+                              title="Download PDF"
+                            >
+                              <Download className="w-4 h-4" />
+                            </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); handleDelete(doc.id); }}
                               className="p-1.5 text-text-ghost hover:text-danger transition-colors cursor-pointer"

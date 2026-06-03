@@ -17,10 +17,12 @@ function ResetPasswordContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [csrfToken, setCsrfToken] = useState("");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
+    fetch("/api/csrf").then(r => r.json()).then(d => setCsrfToken(d.csrfToken)).catch(() => {});
   }, []);
 
   // Precompute particles client-side only
@@ -62,7 +64,7 @@ function ResetPasswordContent() {
     try {
       const response = await fetch("/api/auth/reset-password", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrfToken },
         body: JSON.stringify({ token, password }),
       });
 
