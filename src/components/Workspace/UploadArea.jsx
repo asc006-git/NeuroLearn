@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { UploadCloud, FileText, CheckCircle2, X, AlertTriangle, Loader2 } from "lucide-react";
+import { UploadCloud, FileText, CheckCircle2, X, AlertTriangle, Loader2, BookOpen, BrainCircuit, StickyNote, Network } from "lucide-react";
 import { cn } from "../../lib/utils";
 
 export function UploadArea() {
@@ -10,6 +10,8 @@ export function UploadArea() {
   const [progressPercent, setProgressPercent] = useState(0);
   const [uploadedFilename, setUploadedFilename] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [uploadResult, setUploadResult] = useState(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   
   const fileInputRef = useRef(null);
 
@@ -109,11 +111,8 @@ export function UploadArea() {
               } else if (data.status === "complete") {
                 setProgressPercent(100);
                 setUploadStatus("complete");
-                
-                // Reload page after 1.5s to show new data
-                setTimeout(() => {
-                  window.location.reload();
-                }, 1500);
+                setUploadResult(data.result || data);
+                setShowSuccessModal(true);
               } else if (data.status === "error") {
                 throw new Error(data.message);
               }
@@ -238,7 +237,32 @@ export function UploadArea() {
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
-                <p className="text-xs text-teal font-medium tracking-tight">Knowledge Ingestion Successful. Synchronizing neural mapping...</p>
+                <p className="text-xs text-teal font-medium tracking-tight mb-4">Knowledge Ingestion Successful!</p>
+                {uploadResult && (
+                  <div className="flex flex-wrap gap-3 justify-center">
+                    <button
+                      onClick={() => { window.location.href = "/summaries"; }}
+                      className="px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all hover:scale-105"
+                      style={{ background: "rgba(0,245,212,0.15)", color: "#00F5D4", border: "1px solid rgba(0,245,212,0.3)" }}
+                    >
+                      <BookOpen className="w-4 h-4" /> View Summary
+                    </button>
+                    <button
+                      onClick={() => { window.location.href = "/quiz-lab"; }}
+                      className="px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all hover:scale-105"
+                      style={{ background: "rgba(255,138,0,0.15)", color: "#FF8A00", border: "1px solid rgba(255,138,0,0.3)" }}
+                    >
+                      <BrainCircuit className="w-4 h-4" /> Take Quiz
+                    </button>
+                    <button
+                      onClick={() => { window.location.href = "/smart-notes"; }}
+                      className="px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer transition-all hover:scale-105"
+                      style={{ background: "rgba(139,92,246,0.15)", color: "#8B5CF6", border: "1px solid rgba(139,92,246,0.3)" }}
+                    >
+                      <StickyNote className="w-4 h-4" /> Open Notes
+                    </button>
+                  </div>
+                )}
               </motion.div>
             )}
 
@@ -265,6 +289,94 @@ export function UploadArea() {
           </AnimatePresence>
         </div>
       </motion.div>
+
+      {/* Post-Upload Ingestion Success Modal Overlay */}
+      <AnimatePresence>
+        {showSuccessModal && (
+          <div 
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }}
+            onClick={() => {
+              setShowSuccessModal(false);
+              setUploadStatus("idle");
+            }}
+          >
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="w-full max-w-lg p-8 rounded-3xl relative z-10 text-center"
+              style={{ background: "rgba(11,16,32,0.95)", border: "1px solid rgba(255,255,255,0.08)", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button 
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  setUploadStatus("idle");
+                }}
+                className="absolute top-4 right-4 text-text-muted hover:text-text-primary cursor-pointer transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="w-16 h-16 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center mx-auto mb-6">
+                <CheckCircle2 className="w-8 h-8" style={{ color: "#00F5D4" }} />
+              </div>
+
+              <h2 className="text-2xl font-display font-bold text-white mb-2">Ingestion Successful!</h2>
+              <p className="text-sm text-slate-400 mb-6 leading-relaxed max-w-md mx-auto">
+                Neural pipeline successfully processed <strong>{uploadedFilename}</strong>. Your AI learning assets are now generated and active.
+              </p>
+
+              {/* Action grid */}
+              <div className="grid grid-cols-2 gap-4 mb-6">
+                <button
+                  onClick={() => { window.location.href = "/summaries"; }}
+                  className="p-4 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-all hover:scale-105 hover:bg-teal-500/10"
+                  style={{ background: "rgba(0,245,212,0.05)", border: "1px solid rgba(0,245,212,0.15)" }}
+                >
+                  <BookOpen className="w-6 h-6" style={{ color: "#00F5D4" }} />
+                  <span className="text-xs font-bold text-white">View Summary</span>
+                </button>
+                <button
+                  onClick={() => { window.location.href = "/quiz-lab"; }}
+                  className="p-4 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-all hover:scale-105 hover:bg-orange-500/10"
+                  style={{ background: "rgba(255,138,0,0.05)", border: "1px solid rgba(255,138,0,0.15)" }}
+                >
+                  <BrainCircuit className="w-6 h-6" style={{ color: "#FF8A00" }} />
+                  <span className="text-xs font-bold text-white">Take Quiz</span>
+                </button>
+                <button
+                  onClick={() => { window.location.href = "/smart-notes?tab=notes"; }}
+                  className="p-4 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-all hover:scale-105 hover:bg-purple-500/10"
+                  style={{ background: "rgba(139,92,246,0.05)", border: "1px solid rgba(139,92,246,0.15)" }}
+                >
+                  <StickyNote className="w-6 h-6" style={{ color: "#8B5CF6" }} />
+                  <span className="text-xs font-bold text-white">Open Notes</span>
+                </button>
+                <button
+                  onClick={() => { window.location.href = "/smart-notes?tab=knowledge"; }}
+                  className="p-4 rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-all hover:scale-105 hover:bg-sky-500/10"
+                  style={{ background: "rgba(56,189,248,0.05)", border: "1px solid rgba(56,189,248,0.15)" }}
+                >
+                  <Network className="w-6 h-6" style={{ color: "#38BDF8" }} />
+                  <span className="text-xs font-bold text-white">Knowledge Map</span>
+                </button>
+              </div>
+
+              <button
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  setUploadStatus("idle");
+                }}
+                className="w-full py-3 rounded-xl text-sm font-semibold border border-white/10 hover:bg-white/5 transition-all text-slate-300 cursor-pointer"
+              >
+                Dismiss
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }

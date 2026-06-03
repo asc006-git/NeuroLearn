@@ -2,7 +2,11 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, X, Send, BrainCircuit, Bot, Mic, Zap } from "lucide-react";
+import {
+  Sparkles, X, Send, BrainCircuit, Bot, Mic, Zap,
+  AlertTriangle, Key, ExternalLink, BookOpen, Brain,
+  ClipboardList, Lightbulb, GraduationCap,
+} from "lucide-react";
 
 const springConfig = { stiffness: 120, damping: 18, mass: 0.8 };
 
@@ -27,10 +31,95 @@ const TypingIndicator = React.memo(function TypingIndicator() {
   );
 });
 
+// API Key Troubleshooting Panel
+const APIKeyTroubleshootPanel = React.memo(function APIKeyTroubleshootPanel({
+  errorType,
+  details,
+}: {
+  errorType: string;
+  details: string;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={springConfig}
+      className="mx-2 mb-3"
+    >
+      <div
+        className="rounded-2xl p-4 space-y-3 overflow-hidden relative"
+        style={{
+          background: "linear-gradient(135deg, rgba(255,138,0,0.06), rgba(239,68,68,0.04))",
+          border: "1px solid rgba(255,138,0,0.2)",
+        }}
+      >
+        {/* Decorative glow */}
+        <div
+          className="absolute top-0 right-0 w-24 h-24 rounded-full pointer-events-none"
+          style={{ background: "radial-gradient(circle, rgba(255,138,0,0.1), transparent)", filter: "blur(20px)" }}
+        />
+
+        <div className="flex items-center gap-2 relative z-10">
+          <div
+            className="p-1.5 rounded-lg"
+            style={{ background: "rgba(255,138,0,0.15)", border: "1px solid rgba(255,138,0,0.25)" }}
+          >
+            <AlertTriangle className="w-3.5 h-3.5 text-[#FF8A00]" />
+          </div>
+          <span className="text-xs font-bold text-[#FF8A00] uppercase tracking-wider">
+            {errorType === "API_KEY_MISSING" ? "API Key Required" : errorType === "API_KEY_INVALID" ? "Invalid API Key" : errorType === "QUOTA_EXHAUSTED" ? "Quota Exhausted" : errorType === "RATE_LIMITED" ? "Rate Limited" : "Connection Issue"}
+          </span>
+        </div>
+
+        <p className="text-xs text-text-muted leading-relaxed relative z-10">
+          {details}
+        </p>
+
+        <div className="space-y-2 relative z-10">
+          <p className="text-[10px] font-semibold text-text-ghost uppercase tracking-wider">How to fix:</p>
+          <div className="space-y-1.5">
+            <div className="flex items-start gap-2">
+              <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-[8px] font-bold" style={{ background: "rgba(0,245,212,0.15)", color: "#00F5D4" }}>1</div>
+              <p className="text-[11px] text-text-muted">
+                Visit{" "}
+                <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-neural-cyan hover:underline inline-flex items-center gap-0.5">
+                  Google AI Studio <ExternalLink className="w-2.5 h-2.5" />
+                </a>
+              </p>
+            </div>
+            <div className="flex items-start gap-2">
+              <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-[8px] font-bold" style={{ background: "rgba(0,245,212,0.15)", color: "#00F5D4" }}>2</div>
+              <p className="text-[11px] text-text-muted">Generate a new API key</p>
+            </div>
+            <div className="flex items-start gap-2">
+              <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-[8px] font-bold" style={{ background: "rgba(0,245,212,0.15)", color: "#00F5D4" }}>3</div>
+              <p className="text-[11px] text-text-muted">
+                Add to your <code className="px-1 py-0.5 rounded bg-white/5 text-neural-cyan text-[10px]">.env</code> file:
+              </p>
+            </div>
+          </div>
+          <div
+            className="px-3 py-2 rounded-lg font-mono text-[10px] text-text-secondary"
+            style={{ background: "rgba(5,8,22,0.6)", border: "1px solid rgba(255,255,255,0.06)" }}
+          >
+            GOOGLE_API_KEY=your_api_key_here
+          </div>
+          <div className="flex items-start gap-2">
+            <div className="w-4 h-4 rounded-full flex items-center justify-center shrink-0 mt-0.5 text-[8px] font-bold" style={{ background: "rgba(0,245,212,0.15)", color: "#00F5D4" }}>4</div>
+            <p className="text-[11px] text-text-muted">Restart the dev server</p>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+});
+
 interface Message {
   id: number;
-  type: "ai" | "user";
+  type: "ai" | "user" | "error";
   text: string;
+  errorType?: string;
+  errorDetails?: string;
 }
 
 type AIState = "idle" | "thinking" | "analyzing" | "synthesizing";
@@ -38,11 +127,11 @@ type AIState = "idle" | "thinking" | "analyzing" | "synthesizing";
 export function FloatingAIAssistant() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
-    { id: 1, type: "ai", text: "Hello. I am your Neural Assistant. How can I assist with your studies today?" },
+    { id: 1, type: "ai", text: "Hello! I'm your Neural Assistant powered by Gemini AI. Ask me anything about your uploaded documents, or use a quick action below to get started." },
   ]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
-  const [aiState, setAiState] = useState<AIState>("idle"); // idle, thinking, analyzing, synthesizing
+  const [aiState, setAiState] = useState<AIState>("idle");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = useCallback(() => {
@@ -69,8 +158,8 @@ export function FloatingAIAssistant() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: currentInput,
-          history: messages.filter((m) => m.id !== 1).slice(-10).map((m) => ({
-            role: m.type,
+          history: messages.filter((m) => m.id !== 1 && m.type !== "error").slice(-10).map((m) => ({
+            role: m.type === "ai" ? "assistant" : "user",
             text: m.text,
           })),
         }),
@@ -78,14 +167,34 @@ export function FloatingAIAssistant() {
 
       setAiState("synthesizing");
       const json = await res.json();
-      setMessages((prev) => [
-        ...prev,
-        { id: Date.now(), type: "ai", text: json.reply || json.error || "I couldn't process that request." },
-      ]);
+
+      // Handle structured error responses
+      if (json.error && (json.error === "API_KEY_MISSING" || json.error === "API_KEY_INVALID" || json.error === "RATE_LIMITED" || json.error === "AI_UNAVAILABLE")) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now(),
+            type: "error" as const,
+            text: json.details || "An error occurred with the AI service.",
+            errorType: json.error,
+            errorDetails: json.details,
+          },
+        ]);
+      } else if (json.reply) {
+        setMessages((prev) => [
+          ...prev,
+          { id: Date.now(), type: "ai", text: json.reply },
+        ]);
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          { id: Date.now(), type: "ai", text: "I couldn't process that request. Please try again." },
+        ]);
+      }
     } catch (err) {
       setMessages((prev) => [
         ...prev,
-        { id: Date.now(), type: "ai", text: "I'm having trouble connecting. Please try again." },
+        { id: Date.now(), type: "ai", text: "I'm having trouble connecting to the server. Please check your network and try again." },
       ]);
     } finally {
       setIsTyping(false);
@@ -94,9 +203,11 @@ export function FloatingAIAssistant() {
   }, [input, messages]);
 
   const quickActions = [
-    { label: "Review weak topics", icon: "📊", prompt: "What are my weakest topics based on my quiz scores?" },
-    { label: "Generate quiz", icon: "🧪", prompt: "Generate a practice quiz for me based on my documents." },
-    { label: "Summarize notes", icon: "📝", prompt: "Summarize my recent notes and key concepts." },
+    { label: "Generate Quiz", icon: Brain, prompt: "Generate a practice quiz for me based on my documents.", color: "#00F5D4" },
+    { label: "Flashcards", icon: Zap, prompt: "Can you generate a set of flashcards for the key concepts discussed in my uploaded documents?", color: "#38BDF8" },
+    { label: "Weak Topics", icon: ClipboardList, prompt: "Based on my quiz performance, what are my weakest topics and how can I improve them?", color: "#FF8A00" },
+    { label: "Study Plan", icon: GraduationCap, prompt: "Please create a structured, personalized study plan based on my uploaded documents.", color: "#8B5CF6" },
+    { label: "Explain", icon: Lightbulb, prompt: "Choose a key concept from my documents and explain it in simple terms with a real-world analogy.", color: "#FACC15" },
   ];
 
   const stateLabels: Record<AIState, string | null> = {
@@ -194,40 +305,48 @@ export function FloatingAIAssistant() {
             {/* Chat Area */}
             <div className="flex-1 overflow-y-auto p-5 space-y-5 relative" style={{ background: "rgba(5, 8, 22, 0.3)" }}>
               {messages.map((msg) => (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={springConfig}
-                  key={msg.id}
-                  className={`flex max-w-[85%] ${msg.type === "user" ? "ml-auto justify-end" : "mr-auto"}`}
-                >
-                  {msg.type === "ai" && (
-                    <div
-                      className="w-7 h-7 rounded-lg flex items-center justify-center mr-3 shrink-0 mt-1"
-                      style={{
-                        background: "rgba(19, 27, 46, 0.8)",
-                        border: "1px solid rgba(255,255,255,0.08)",
-                      }}
+                <React.Fragment key={msg.id}>
+                  {msg.type === "error" ? (
+                    <APIKeyTroubleshootPanel
+                      errorType={msg.errorType || "UNKNOWN"}
+                      details={msg.errorDetails || msg.text}
+                    />
+                  ) : (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={springConfig}
+                      className={`flex max-w-[85%] ${msg.type === "user" ? "ml-auto justify-end" : "mr-auto"}`}
                     >
-                      <Bot className="w-3.5 h-3.5 text-text-muted" />
-                    </div>
+                      {msg.type === "ai" && (
+                        <div
+                          className="w-7 h-7 rounded-lg flex items-center justify-center mr-3 shrink-0 mt-1"
+                          style={{
+                            background: "rgba(19, 27, 46, 0.8)",
+                            border: "1px solid rgba(255,255,255,0.08)",
+                          }}
+                        >
+                          <Bot className="w-3.5 h-3.5 text-text-muted" />
+                        </div>
+                      )}
+                      <div
+                        className="px-4 py-3 text-sm leading-relaxed"
+                        style={{
+                          background: msg.type === "user"
+                            ? "linear-gradient(135deg, rgba(0, 245, 212, 0.15), rgba(56, 189, 248, 0.15))"
+                            : "rgba(11, 16, 32, 0.6)",
+                          border: msg.type === "user"
+                            ? "1px solid rgba(0, 245, 212, 0.2)"
+                            : "1px solid rgba(255,255,255,0.06)",
+                          borderRadius: msg.type === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
+                          color: msg.type === "user" ? "#F0F6FC" : "rgba(240, 246, 252, 0.85)",
+                        }}
+                      >
+                        {msg.text}
+                      </div>
+                    </motion.div>
                   )}
-                  <div
-                    className="px-4 py-3 text-sm leading-relaxed"
-                    style={{
-                      background: msg.type === "user"
-                        ? "linear-gradient(135deg, rgba(0, 245, 212, 0.15), rgba(56, 189, 248, 0.15))"
-                        : "rgba(11, 16, 32, 0.6)",
-                      border: msg.type === "user"
-                        ? "1px solid rgba(0, 245, 212, 0.2)"
-                        : "1px solid rgba(255,255,255,0.06)",
-                      borderRadius: msg.type === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
-                      color: msg.type === "user" ? "#F0F6FC" : "rgba(240, 246, 252, 0.85)",
-                    }}
-                  >
-                    {msg.text}
-                  </div>
-                </motion.div>
+                </React.Fragment>
               ))}
 
               {/* Typing indicator */}
@@ -256,24 +375,28 @@ export function FloatingAIAssistant() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Quick Actions */}
-            <div className="px-4 pt-3 flex gap-2 shrink-0 overflow-x-auto no-scrollbar">
-              {quickActions.map((action, i) => (
-                <button
-                  key={i}
-                  onClick={() => {
-                    setInput(action.prompt);
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-text-muted hover:text-text-primary transition-colors whitespace-nowrap cursor-pointer"
-                  style={{
-                    background: "rgba(11, 16, 32, 0.5)",
-                    border: "1px solid rgba(255,255,255,0.06)",
-                  }}
-                >
-                  <span>{action.icon}</span>
-                  {action.label}
-                </button>
-              ))}
+            {/* Quick Actions — 5 context-aware prompts */}
+            <div className="px-3 pt-3 pb-1 flex gap-1.5 shrink-0 overflow-x-auto no-scrollbar">
+              {quickActions.map((action, i) => {
+                const Icon = action.icon;
+                return (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      setInput(action.prompt);
+                    }}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all whitespace-nowrap cursor-pointer group hover:scale-[1.02]"
+                    style={{
+                      background: `${action.color}08`,
+                      border: `1px solid ${action.color}20`,
+                      color: `${action.color}cc`,
+                    }}
+                  >
+                    <Icon className="w-3 h-3 shrink-0" style={{ color: action.color }} />
+                    {action.label}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Input Area */}

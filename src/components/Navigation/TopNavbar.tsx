@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSession, signOut } from "next-auth/react";
-import { Search, Bell, Mic, ChevronDown, LogOut, BrainCircuit, Sparkles, User } from "lucide-react";
+import { Search, Bell, Mic, ChevronDown, LogOut, BrainCircuit, Sparkles, User, FileText, BookOpen, StickyNote, Brain, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 const springConfig = { stiffness: 120, damping: 18, mass: 0.8 };
 
@@ -17,11 +18,16 @@ const searchPlaceholders = [
 
 export function TopNavbar() {
   const { data: session } = useSession();
+  const router = useRouter();
   const [isFocused, setIsFocused] = useState(false);
   const [placeholderIndex, setPlaceholderIndex] = useState(0);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<any>(null);
+  const [searching, setSearching] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Cycle search placeholders
   useEffect(() => {
@@ -42,6 +48,32 @@ export function TopNavbar() {
     document.addEventListener("mousedown", handleOutsideClick);
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
+
+  const performSearch = async (q: string) => {
+    if (!q.trim() || q.trim().length < 2) return;
+    setSearching(true);
+    try {
+      const res = await fetch(`/api/search?q=${encodeURIComponent(q.trim())}`);
+      if (res.ok) {
+        const json = await res.json();
+        setSearchResults(json.results);
+      }
+    } catch (err) {
+      console.error("Search error:", err);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleSearchNav = (url: string) => {
+    setShowSuggestions(false);
+    setIsFocused(false);
+    setSearchQuery("");
+    setSearchResults(null);
+    router.push(url);
+  };
+
+  const hasResults = searchResults && Object.values(searchResults).some((arr: any) => arr.length > 0);
 
   const userName = session?.user?.name || "Alex";
   const userAvatar = session?.user?.image || `https://api.dicebear.com/7.x/notionists/svg?seed=${userName}&backgroundColor=transparent`;
@@ -136,6 +168,17 @@ export function TopNavbar() {
 
           <input
             type="text"
+            value={searchQuery}
+            onChange={(e) => {
+              const val = e.target.value;
+              setSearchQuery(val);
+              if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+              if (val.trim().length >= 2) {
+                searchTimeoutRef.current = setTimeout(() => performSearch(val), 300);
+              } else {
+                setSearchResults(null);
+              }
+            }}
             className="w-full h-full bg-transparent border-none pl-11 pr-24 text-sm text-text-primary focus:outline-none"
             placeholder={isFocused ? "Type neural query..." : ""}
             onFocus={() => {
@@ -146,6 +189,7 @@ export function TopNavbar() {
               setIsFocused(false);
               setTimeout(() => setShowSuggestions(false), 200);
             }}
+            onKeyDown={(e) => { if (e.key === "Enter" && searchQuery.trim()) performSearch(searchQuery); }}
           />
 
           <div className="absolute right-3 flex items-center gap-2">
@@ -163,7 +207,7 @@ export function TopNavbar() {
           </div>
         </div>
 
-        {/* Semantic AI Suggestions dropdown */}
+        {/* Search Results Dropdown */}
         <AnimatePresence>
           {showSuggestions && isFocused && (
             <motion.div
@@ -171,24 +215,105 @@ export function TopNavbar() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -4, scale: 0.98 }}
               transition={springConfig}
-              className="absolute left-1/2 -translate-x-1/2 mt-2 w-[calc(100%-4rem)] neural-glass-panel rounded-2xl p-3 shadow-2xl z-50"
+              className="absolute left-1/2 -translate-x-1/2 mt-2 w-[calc(100%-4rem)] neural-glass-panel rounded-2xl p-3 shadow-2xl z-50 max-h-[70vh] overflow-y-auto"
+              style={{ background: "rgba(7, 17, 34, 0.95)" }}
             >
-              <p className="text-[10px] font-bold text-text-ghost uppercase tracking-widest px-3 py-2 flex items-center gap-1.5">
-                <Sparkles className="w-3 h-3 text-neural-cyan" /> Semantic Directives
-              </p>
-              {[
-                { label: "Review mitochondria notes", icon: "📚" },
-                { label: "Generate quiz on Neuroscience", icon: "🧪" },
-                { label: "Analyze weak topics this week", icon: "📊" },
-              ].map((s, i) => (
-                <button
-                  key={i}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-text-secondary hover:text-text-primary hover:bg-white/5 transition-all text-left cursor-pointer"
-                >
-                  <span>{s.icon}</span>
-                  {s.label}
-                </button>
-              ))}
+              {searchQuery.trim().length < 2 ? (
+                <>
+                  <p className="text-[10px] font-bold text-text-ghost uppercase tracking-widest px-3 py-2 flex items-center gap-1.5">
+                    <Sparkles className="w-3 h-3 text-neural-cyan" /> Quick Actions
+                  </p>
+                  <button onClick={() => handleSearchNav("/summaries")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-text-secondary hover:text-text-primary hover:bg-white/5 transition-all text-left cursor-pointer">
+                    <BookOpen className="w-4 h-4" /> View Summaries
+                  </button>
+                  <button onClick={() => handleSearchNav("/quiz-lab")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-text-secondary hover:text-text-primary hover:bg-white/5 transition-all text-left cursor-pointer">
+                    <Brain className="w-4 h-4" /> Take a Quiz
+                  </button>
+                  <button onClick={() => handleSearchNav("/smart-notes")} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-text-secondary hover:text-text-primary hover:bg-white/5 transition-all text-left cursor-pointer">
+                    <StickyNote className="w-4 h-4" /> Open Notes
+                  </button>
+                </>
+              ) : searching ? (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="w-5 h-5 text-neural-cyan animate-spin" />
+                </div>
+              ) : hasResults ? (
+                <div className="space-y-3">
+                  {searchResults.documents?.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-bold text-text-ghost uppercase tracking-widest px-3 py-1 flex items-center gap-1.5">
+                        <FileText className="w-3 h-3 text-neural-cyan" /> Documents
+                      </p>
+                      {searchResults.documents.map((d: any) => (
+                        <button key={d.id} onClick={() => handleSearchNav(d.url)} className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-text-secondary hover:text-text-primary hover:bg-white/5 transition-all text-left cursor-pointer">
+                          <FileText className="w-4 h-4 shrink-0" />
+                          <span className="truncate">{d.title}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {searchResults.summaries?.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-bold text-text-ghost uppercase tracking-widest px-3 py-1 flex items-center gap-1.5">
+                        <BookOpen className="w-3 h-3 text-neural-cyan" /> Summaries
+                      </p>
+                      {searchResults.summaries.map((s: any) => (
+                        <button key={s.id} onClick={() => handleSearchNav(s.url)} className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-text-secondary hover:text-text-primary hover:bg-white/5 transition-all text-left cursor-pointer">
+                          <BookOpen className="w-4 h-4 shrink-0" />
+                          <div className="truncate">
+                            <span className="block truncate">{s.title}</span>
+                            {s.excerpt && <span className="block text-[11px] text-text-ghost truncate">{s.excerpt}</span>}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {searchResults.notes?.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-bold text-text-ghost uppercase tracking-widest px-3 py-1 flex items-center gap-1.5">
+                        <StickyNote className="w-3 h-3 text-neural-cyan" /> Notes
+                      </p>
+                      {searchResults.notes.map((n: any) => (
+                        <button key={n.id} onClick={() => handleSearchNav(n.url)} className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-text-secondary hover:text-text-primary hover:bg-white/5 transition-all text-left cursor-pointer">
+                          <StickyNote className="w-4 h-4 shrink-0" />
+                          <div className="truncate">
+                            <span className="block truncate">{n.title}</span>
+                            {n.excerpt && <span className="block text-[11px] text-text-ghost truncate">{n.excerpt}</span>}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {searchResults.concepts?.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-bold text-text-ghost uppercase tracking-widest px-3 py-1 flex items-center gap-1.5">
+                        <Brain className="w-3 h-3 text-neural-cyan" /> Concepts
+                      </p>
+                      {searchResults.concepts.map((c: any, i: number) => (
+                        <button key={i} onClick={() => handleSearchNav(c.url)} className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-text-secondary hover:text-text-primary hover:bg-white/5 transition-all text-left cursor-pointer">
+                          <Brain className="w-4 h-4 shrink-0" />
+                          <span className="truncate">{c.name} <span className="text-text-ghost text-[11px]">in {c.source}</span></span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {searchResults.quizzes?.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-bold text-text-ghost uppercase tracking-widest px-3 py-1 flex items-center gap-1.5">
+                        <Brain className="w-3 h-3 text-neural-cyan" /> Quizzes
+                      </p>
+                      {searchResults.quizzes.map((q: any) => (
+                        <button key={q.id} onClick={() => handleSearchNav(q.url)} className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-text-secondary hover:text-text-primary hover:bg-white/5 transition-all text-left cursor-pointer">
+                          <Brain className="w-4 h-4 shrink-0" />
+                          <span className="truncate">{q.title}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-text-muted text-center py-4">No results found for "{searchQuery}"</p>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
