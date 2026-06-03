@@ -1,44 +1,47 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { requireAuth } from "@/lib/api-auth";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user || !session.user.email) {
-      return NextResponse.json({ error: "Unauthorized access detected." }, { status: 401 });
-    }
+    const { user, error } = await requireAuth();
+    if (error) return error;
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      include: {
-        documents: {
-          include: {
-            summaries: true,
-          },
+    const { searchParams } = new URL(req.url);
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    const limit = Math.min(50, Math.max(1, parseInt(searchParams.get("limit") || "20")));
+
+    const [summaries, total] = await Promise.all([
+      prisma.summary.findMany({
+        where: {
+          document: { userId: user.id },
         },
-      },
-    });
+        orderBy: { generatedAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          document: { select: { title: true } },
+        },
+      }),
+      prisma.summary.count({
+        where: {
+          document: { userId: user.id },
+        },
+      }),
+    ]);
 
-    if (!user) {
-      return NextResponse.json({ error: "User profile not found." }, { status: 404 });
-    }
-
-    // Flatten all summaries across user documents
-    const allSummaries = user.documents.flatMap((doc) =>
-      doc.summaries.map((sum) => ({
-        ...sum,
-        documentTitle: doc.title,
-      }))
-    );
-
-    // Sort by generatedAt descending
-    allSummaries.sort((a, b) => new Date(b.generatedAt).getTime() - new Date(a.generatedAt).getTime());
+    const allSummaries = summaries.map((sum) => ({
+      ...sum,
+      documentTitle: sum.document.title,
+      document: undefined,
+    }));
 
     return NextResponse.json({
       success: true,
       summaries: allSummaries,
+      total,
+      page,
+      limit,
     });
   } catch (error: any) {
     console.error("GET Summaries Error:", error);

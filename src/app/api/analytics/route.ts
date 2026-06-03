@@ -1,22 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { requireAuth } from "@/lib/api-auth";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user || !session.user.email) {
-      return NextResponse.json({ error: "Unauthorized access detected." }, { status: 401 });
-    }
+    const { user: authUser, error } = await requireAuth();
+    if (error) return error;
 
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      include: {
+      where: { id: authUser.id },
+      select: {
         documents: {
-          include: {
+          select: {
+            title: true,
             summaries: {
-              include: { quizzes: true },
+              select: {
+                id: true,
+                concepts: true,
+                quizzes: { select: { id: true, score: true } },
+              },
             },
           },
         },
@@ -27,6 +29,13 @@ export async function GET(req: NextRequest) {
         sessions: {
           orderBy: { createdAt: "desc" },
           take: 100,
+          select: {
+            id: true,
+            title: true,
+            score: true,
+            duration: true,
+            createdAt: true,
+          },
         },
       },
     });

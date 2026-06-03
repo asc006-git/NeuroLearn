@@ -1,26 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { requireAuth } from "@/lib/api-auth";
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user || !session.user.email) {
-      return NextResponse.json({ error: "Unauthorized access detected." }, { status: 401 });
-    }
+    const { user, error } = await requireAuth();
+    if (error) return error;
 
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
+    const { searchParams } = new URL(req.url);
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1"));
+    const limit = Math.min(200, Math.max(1, parseInt(searchParams.get("limit") || "50")));
 
-    if (!user) {
-      return NextResponse.json({ error: "User profile not found." }, { status: 404 });
-    }
-
-    const maps = await prisma.knowledgeMap.findMany({
-      where: { userId: user.id },
-    });
+    const [maps, total] = await Promise.all([
+      prisma.knowledgeMap.findMany({
+        where: { userId: user.id },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.knowledgeMap.count({ where: { userId: user.id } }),
+    ]);
 
     const nodes = maps.map((m) => ({
       id: m.id,
@@ -34,7 +32,7 @@ export async function GET(req: NextRequest) {
       y: m.y,
     }));
 
-    return NextResponse.json({ success: true, nodes });
+    return NextResponse.json({ success: true, nodes, total, page, limit });
   } catch (error: any) {
     console.error("GET KnowledgeMap Error:", error);
     return NextResponse.json(
