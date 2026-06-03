@@ -39,10 +39,15 @@ build
 
 # Temp and Uploads
 public/uploads/
+private/uploads/*
+!private/uploads/.gitkeep
 scratch/
 session-*.md
 *.db
 *.sqlite
+
+# Python virtual environment
+server/venv/
 
 # Build artifacts
 tsconfig.tsbuildinfo
