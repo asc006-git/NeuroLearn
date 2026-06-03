@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CheckCircle2, XCircle, BrainCircuit, ChevronRight, Trophy, Flame,
@@ -83,6 +83,7 @@ export default function QuizLab() {
   // Match question state (moved to top level, NOT inside renderMatch - violates Rules of Hooks)
   const [activeLeft, setActiveLeft] = useState<string | null>(null);
   const [correctCount, setCorrectCount] = useState(0);
+  const correctCountRef = useRef(0);
 
   const burstDistances = useMemo(() => {
     return [...Array(16)].map(() => 80 + Math.random() * 120);
@@ -93,7 +94,19 @@ export default function QuizLab() {
       const res = await fetch("/api/quizzes");
       if (res.ok) {
         const json = await res.json();
-        setQuizzes(json.quizzes || []);
+        const quizData = json.quizzes || [];
+        setQuizzes(quizData);
+        // Deep link: if ?id=... is in URL, auto-start that quiz
+        if (typeof window !== "undefined") {
+          const params = new URLSearchParams(window.location.search);
+          const targetId = params.get("id");
+          if (targetId && quizData.length > 0) {
+            const target = quizData.find((q: any) => q.id === targetId);
+            if (target) {
+              startQuiz(target);
+            }
+          }
+        }
       }
     } catch (err) {
       console.error("Error retrieving quizzes:", err);
@@ -225,15 +238,22 @@ export default function QuizLab() {
       setIsSubmitted(true);
       const correct = !isTimeout && checkAnswer();
       if (correct) {
-        setCorrectCount((c) => c + 1);
+        correctCountRef.current += 1;
+        setCorrectCount(correctCountRef.current);
         const points = qType === "Scenario" || qType === "Application" ? 200 : qType === "ShortAnswer" || qType === "Concept" ? 150 : 100;
-        setScore((s) => s + points * multiplier);
-        setStreak((s) => s + 1);
+        
+        const nextStreak = streak + 1;
+        setStreak(nextStreak);
+        
+        let nextMultiplier = multiplier;
+        if (nextStreak > 0 && nextStreak % 2 === 0) {
+          nextMultiplier = Math.min(multiplier + 0.5, 3);
+          setMultiplier(nextMultiplier);
+        }
+        
+        setScore((s) => s + points * nextMultiplier);
         setShowCorrectBurst(true);
         setTimeout(() => setShowCorrectBurst(false), 1200);
-        if (streak > 0 && streak % 2 === 0) {
-          setMultiplier((m) => Math.min(m + 0.5, 3));
-        }
       } else {
         setStreak(0);
         setMultiplier(1);
@@ -261,7 +281,7 @@ export default function QuizLab() {
       setGameState("summary");
       setSubmittingScore(true);
       try {
-        const accuracy = questions.length > 0 ? Math.round((correctCount / questions.length) * 100) : 0;
+        const accuracy = questions.length > 0 ? Math.round((correctCountRef.current / questions.length) * 100) : 0;
         setFinalAccuracy(accuracy);
         await fetch("/api/quizzes", {
           method: "POST",
@@ -269,6 +289,7 @@ export default function QuizLab() {
           body: JSON.stringify({
             quizId: selectedQuiz.id,
             score: accuracy,
+            points: score,
             duration: questions.length,
           }),
         });
@@ -294,6 +315,7 @@ export default function QuizLab() {
     setShowWrongExplanations(false);
     setActiveLeft(null);
     setCorrectCount(0);
+    correctCountRef.current = 0;
     setGameState("playing");
     // Set initial timer based on first question type
     const firstQ = (() => { try { return JSON.parse(quiz.questions)[0]; } catch { return null; } })();
@@ -1063,6 +1085,17 @@ export default function QuizLab() {
             <p className="text-sm text-text-muted mb-8 max-w-sm mx-auto leading-relaxed">
               Excellent work! You completed the multi-format assessment for <span className="text-text-primary font-semibold">{selectedQuiz?.summaryTitle}</span>.
             </p>
+
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="p-4 rounded-2xl bg-void/50 border border-white/5">
+                <p className="text-[10px] text-text-ghost uppercase font-bold tracking-wider mb-1">Correct</p>
+                <p className="text-2xl font-display font-bold text-neural-cyan">{correctCount}/{questions.length}</p>
+              </div>
+              <div className="p-4 rounded-2xl bg-void/50 border border-white/5">
+                <p className="text-[10px] text-text-ghost uppercase font-bold tracking-wider mb-1">Incorrect</p>
+                <p className="text-2xl font-display font-bold text-danger">{questions.length - correctCount}/{questions.length}</p>
+              </div>
+            </div>
 
             <div className="grid grid-cols-3 gap-4 mb-6">
               <div className="p-4 rounded-2xl bg-void/50 border border-white/5">

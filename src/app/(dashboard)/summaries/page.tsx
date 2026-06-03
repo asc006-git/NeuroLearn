@@ -9,6 +9,7 @@ import {
   ClipboardList, ListChecks, Bookmark,
   BookText, Sigma, ScrollText, Variable,
   Target, ArrowUpRight, Building2, FlaskConical, BarChart3, SquareCheckBig,
+  ThumbsUp, AlertTriangle, Telescope, Quote, Zap,
 } from "lucide-react";
 
 const springConfig = { stiffness: 120, damping: 18, mass: 0.8 };
@@ -24,7 +25,7 @@ const DOC_TYPE_CONFIG: Record<string, { color: string; icon: any }> = {
   "Study Material": { color: "#FACC15", icon: GraduationCap },
 };
 
-type SummaryTab = "brief" | "detailed" | "insights" | "takeaways" | "concepts" | "definitions" | "facts" | "formulas" | "techstack" | "revision" | "chapters" | "objective" | "findings" | "architecture" | "methodology" | "results" | "conclusion";
+type SummaryTab = "brief" | "detailed" | "insights" | "takeaways" | "concepts" | "definitions" | "facts" | "formulas" | "techstack" | "revision" | "chapters" | "objective" | "findings" | "architecture" | "methodology" | "results" | "conclusion" | "advantages" | "limitations" | "futurescope" | "tldr" | "examples";
 
 export default function Summaries() {
   const [summaries, setSummaries] = useState<any[]>([]);
@@ -42,6 +43,18 @@ export default function Summaries() {
         const json = await res.json();
         const data = json.summaries || [];
         setSummaries(data);
+        // Deep link: if ?id=... is in URL, auto-select that summary
+        if (typeof window !== "undefined") {
+          const params = new URLSearchParams(window.location.search);
+          const targetId = params.get("id");
+          if (targetId) {
+            const target = data.find((s: any) => s.id === targetId);
+            if (target) {
+              setActiveSummary(target);
+              return;
+            }
+          }
+        }
         if (data.length > 0) {
           setActiveSummary(data[0]);
         }
@@ -98,6 +111,11 @@ export default function Summaries() {
     { key: "facts", label: "Facts", icon: Sigma },
     { key: "formulas", label: "Formulas", icon: Variable },
     { key: "techstack", label: "Tech Stack", icon: Cpu },
+    { key: "advantages", label: "Advantages", icon: ThumbsUp },
+    { key: "limitations", label: "Limitations", icon: AlertTriangle },
+    { key: "futurescope", label: "Future Scope", icon: Telescope },
+    { key: "tldr", label: "TLDR", icon: Quote },
+    { key: "examples", label: "Examples", icon: Zap },
     { key: "revision", label: "Revision Notes", icon: GraduationCap },
     { key: "chapters", label: "Chapters", icon: ListChecks },
   ];
@@ -121,6 +139,11 @@ export default function Summaries() {
       case "facts": return safeJsonParse(activeSummary.facts).length > 0;
       case "formulas": return safeJsonParse(activeSummary.formulas).length > 0;
       case "techstack": return safeJsonParse(activeSummary.technologyStack).length > 0;
+      case "advantages": return !!activeSummary.advantages;
+      case "limitations": return !!activeSummary.limitations;
+      case "futurescope": return !!activeSummary.futureScope;
+      case "tldr": return !!activeSummary.tldr;
+      case "examples": return safeJsonParse(activeSummary.examples).length > 0;
       case "revision": return !!activeSummary.revisionNotes;
       case "chapters": return safeJsonParse(activeSummary.chapterSummaries).length > 0;
       default: return false;
@@ -895,6 +918,92 @@ export default function Summaries() {
                               })}
                             </div>
                           </div>
+                        );
+                      })()}
+
+                      {/* ── Advantages ── */}
+                      {activeTab === "advantages" && (
+                        <div className="space-y-6">
+                          <div className="flex items-center gap-3 mb-4">
+                            <ThumbsUp className="w-5 h-5 text-[#00F5D4]" />
+                            <h3 className="text-xl font-display font-semibold text-text-primary">Advantages</h3>
+                          </div>
+                          <div className="p-6 rounded-2xl" style={{ background: "rgba(11, 16, 32, 0.5)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                            <p className="text-sm text-text-secondary leading-[1.9] whitespace-pre-line font-light">
+                              {activeSummary.advantages || "No advantage information extracted for this document."}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ── Limitations ── */}
+                      {activeTab === "limitations" && (
+                        <div className="space-y-6">
+                          <div className="flex items-center gap-3 mb-4">
+                            <AlertTriangle className="w-5 h-5 text-[#FF8A00]" />
+                            <h3 className="text-xl font-display font-semibold text-text-primary">Limitations</h3>
+                          </div>
+                          <div className="p-6 rounded-2xl" style={{ background: "rgba(11, 16, 32, 0.5)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                            <p className="text-sm text-text-secondary leading-[1.9] whitespace-pre-line font-light">
+                              {activeSummary.limitations || "No limitation information extracted for this document."}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ── Future Scope ── */}
+                      {activeTab === "futurescope" && (
+                        <div className="space-y-6">
+                          <div className="flex items-center gap-3 mb-4">
+                            <Telescope className="w-5 h-5 text-[#8B5CF6]" />
+                            <h3 className="text-xl font-display font-semibold text-text-primary">Future Scope</h3>
+                          </div>
+                          <div className="p-6 rounded-2xl" style={{ background: "rgba(11, 16, 32, 0.5)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                            <p className="text-sm text-text-secondary leading-[1.9] whitespace-pre-line font-light">
+                              {activeSummary.futureScope || "No future scope information extracted for this document."}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ── TLDR ── */}
+                      {activeTab === "tldr" && (
+                        <div className="space-y-6">
+                          <div className="flex items-center gap-3 mb-4">
+                            <Quote className="w-5 h-5 text-neural-cyan" />
+                            <h3 className="text-xl font-display font-semibold text-text-primary">TLDR</h3>
+                          </div>
+                          <div className="p-6 rounded-2xl relative overflow-hidden" style={{ background: "rgba(0,245,212,0.04)", border: "1px solid rgba(0,245,212,0.15)" }}>
+                            <p className="text-base text-text-primary leading-relaxed font-medium italic">
+                              "{activeSummary.tldr || "No TLDR available for this document."}"
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ── Examples ── */}
+                      {activeTab === "examples" && (() => {
+                        const examples = safeJsonParse(activeSummary.examples);
+                        return examples.length > 0 ? (
+                          <div className="space-y-6">
+                            <div className="flex items-center gap-3 mb-4">
+                              <Zap className="w-5 h-5 text-[#FACC15]" />
+                              <h3 className="text-xl font-display font-semibold text-text-primary">Key Examples</h3>
+                            </div>
+                            <div className="space-y-3">
+                              {examples.map((ex: string, i: number) => (
+                                <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
+                                  className="flex gap-3 p-4 rounded-2xl" style={{ background: "rgba(11, 16, 32, 0.5)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                                  <div className="mt-1 shrink-0">
+                                    <div className="w-2 h-2 rounded-full bg-[#FACC15] shadow-[0_0_8px_rgba(250,204,21,0.5)]" />
+                                  </div>
+                                  <p className="text-sm text-text-secondary leading-relaxed">{ex}</p>
+                                </motion.div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center py-12 text-text-muted text-sm">No examples extracted for this document.</div>
                         );
                       })()}
 

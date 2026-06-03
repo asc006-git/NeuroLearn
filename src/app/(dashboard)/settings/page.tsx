@@ -97,6 +97,7 @@ export default function Settings() {
   const [darkMode, setDarkMode] = useState(true);
   const [emailNotifs, setEmailNotifs] = useState(true);
   const [pushNotifs, setPushNotifs] = useState(true);
+  const [accentColor, setAccentColor] = useState("#00F5D4");
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState("");
 
@@ -117,12 +118,13 @@ export default function Settings() {
           setEmail(data.user.email || "");
         }
         if (data.preferences) {
-          setProcessingIntensity(data.preferences.processingIntensity ?? 2);
-          setAdaptiveQuiz(data.preferences.adaptiveQuiz ?? true);
-          setVoiceMode(data.preferences.voiceMode ?? false);
-          setDarkMode(data.preferences.theme === "light" ? false : true);
-          setEmailNotifs(data.preferences.emailNotifications ?? true);
-          setPushNotifs(data.preferences.pushNotifications ?? true);
+          setProcessingIntensity(data.preferences.intensity ?? 2);
+          setAdaptiveQuiz(data.preferences.adaptive ?? true);
+          setVoiceMode(data.preferences.voice ?? false);
+          setDarkMode(data.preferences.dark ?? true);
+          setEmailNotifs(data.preferences.emailAlerts ?? true);
+          setPushNotifs(data.preferences.pushAlerts ?? true);
+          setAccentColor(data.preferences.accentColor || "#00F5D4");
         }
       })
       .catch(() => {});
@@ -155,12 +157,13 @@ export default function Settings() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          processingIntensity,
-          adaptiveQuiz,
-          voiceMode,
-          theme: darkMode ? "dark" : "light",
-          emailNotifications: emailNotifs,
-          pushNotifications: pushNotifs,
+          intensity: processingIntensity,
+          adaptive: adaptiveQuiz,
+          voice: voiceMode,
+          dark: darkMode,
+          emailAlerts: emailNotifs,
+          pushAlerts: pushNotifs,
+          accentColor,
         }),
       });
       if (res.ok) {
@@ -320,7 +323,12 @@ export default function Settings() {
                           </label>
                           <input
                             type={field.label.includes("Email") ? "email" : "text"}
-                            defaultValue={field.value}
+                            value={field.value}
+                            onChange={(e) => {
+                              if (field.label === "Given Name") setFirstName(e.target.value);
+                              else if (field.label === "Surname") setLastName(e.target.value);
+                              else if (field.label === "Primary Email Link") setEmail(e.target.value);
+                            }}
                             className="w-full py-3 px-4 text-text-primary focus:outline-none transition-all rounded-xl text-sm"
                             style={{
                               background: "rgba(5, 8, 22, 0.5)",
@@ -473,11 +481,12 @@ export default function Settings() {
                         {["#00F5D4", "#38BDF8", "#FF8A00", "#8B5CF6", "#EC4899"].map((c) => (
                           <button
                             key={c}
+                            onClick={() => setAccentColor(c)}
                             className="w-10 h-10 rounded-xl transition-all hover:scale-110"
                             style={{
                               background: c,
-                              boxShadow: c === "#00F5D4" ? `0 0 20px ${c}40, inset 0 0 8px rgba(255,255,255,0.2)` : "none",
-                              border: c === "#00F5D4" ? "2px solid white" : "2px solid transparent",
+                              boxShadow: c === accentColor ? `0 0 20px ${c}40, inset 0 0 8px rgba(255,255,255,0.2)` : "none",
+                              border: c === accentColor ? "2px solid white" : "2px solid transparent",
                             }}
                           />
                         ))}
