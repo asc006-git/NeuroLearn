@@ -66,6 +66,11 @@ export interface SummaryResult {
   technologyStack: TechStackItem[];
   revisionNotes: string;
   chapterSummaries: ChapterSummary[];
+  advantages: string;
+  limitations: string;
+  futureScope: string;
+  tldr: string;
+  examples: string[];
 }
 
 export interface QuizResult {
@@ -833,6 +838,42 @@ function generateLocalSummary(text: string, filename: string): SummaryResult {
   // ── Build title ──
   const title = `${documentType}: ${cleanName}`;
 
+  // ── Advantages ──
+  let advantages = "";
+  const advSentences = scoredSentences.filter((s) =>
+    /\b(?:advantage|benefit|strength|improve|enhance|better|faster|efficient|scalable|robust|flexible|cost.effective|user.friendly)\b/i.test(s.text)
+  );
+  advantages = advSentences.length > 0 ? advSentences.slice(0, 3).map((s) => s.text).join(" ") : "The document presents various benefits of its approach, including improved efficiency and effectiveness in the described domain.";
+
+  // ── Limitations ──
+  let limitations = "";
+  const limSentences = scoredSentences.filter((s) =>
+    /\b(?:limitation|drawback|challenge|constraint|trade.off|disadvantage|weakness|issue|problem|difficulty|bottleneck|downside)\b/i.test(s.text)
+  );
+  limitations = limSentences.length > 0 ? limSentences.slice(0, 3).map((s) => s.text).join(" ") : "";
+
+  // ── Future Scope ──
+  let futureScope = "";
+  const futureSentences = scoredSentences.filter((s) =>
+    /\b(?:future\s+(?:work|research|direction|scope|enhancement|improvement)|further\s+(?:work|research|investigation)|next\s+steps|planned|roadmap|upcoming)\b/i.test(s.text)
+  );
+  futureScope = futureSentences.length > 0 ? futureSentences.slice(0, 3).map((s) => s.text).join(" ") : "";
+
+  // ── TLDR ──
+  const tldr = keyInsights.length > 0
+    ? `This ${documentType.toLowerCase()} explores ${concepts.slice(0, 3).map((c) => c.name).join(", ")}${techStack.length > 0 ? ` using ${techStack.slice(0, 3).map((t) => t.name).join(", ")}` : ""}. Key findings include ${keyFindings.slice(0, 2).map((f) => f.substring(0, 60)).join("; ")}.`
+    : `A ${documentType.toLowerCase()} covering ${cleanName}.`;
+
+  // ── Examples ──
+  const examples: string[] = [];
+  const exampleSentences = scoredSentences.filter((s) =>
+    /\b(?:for\s+(?:example|instance)|such\s+as|including|e\.g\.|like|specifically|namely|illustrates?|demonstrates?)\b/i.test(s.text)
+  );
+  for (const ex of exampleSentences.slice(0, 5)) {
+    const clean = ex.text.length > 200 ? ex.text.substring(0, 197) + "..." : ex.text;
+    if (!examples.some((e) => e.includes(clean.substring(0, 30)))) examples.push(clean);
+  }
+
   return {
     title,
     documentType,
@@ -853,6 +894,11 @@ function generateLocalSummary(text: string, filename: string): SummaryResult {
     technologyStack: techStack,
     revisionNotes,
     chapterSummaries,
+    advantages,
+    limitations,
+    futureScope,
+    tldr,
+    examples,
   };
 }
 
@@ -1214,10 +1260,13 @@ async function tryGeminiSummary(text: string, filename: string): Promise<Summary
   const truncatedText = text.substring(0, 30000);
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`;
     const response = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
+      },
       body: JSON.stringify({
         contents: [{
           parts: [{
@@ -1249,6 +1298,11 @@ REQUIREMENTS:
 16. Detect all technologies, frameworks, databases, APIs, and tools mentioned
 17. Generate exam-oriented REVISION NOTES with key definitions, facts, and important points
 18. If the document has clear sections/chapters, summarize each one
+19. Extract ADVANTAGES: 2-4 sentences on what the document identifies as benefits or strengths
+20. Extract LIMITATIONS: 2-4 sentences on limitations, drawbacks, or challenges mentioned
+21. Extract FUTURE SCOPE: 2-4 sentences on future work, extensions, or open questions
+22. Generate a TLDR: one concise sentence capturing the document's essence (max 50 words)
+23. Extract 3-5 KEY EXAMPLES with concrete instance from the document
 
 Example of executiveBrief quality:
 "This document presents an AI-Powered Content Simplifier and Interactive Learning Assistant developed to transform lengthy educational PDFs into structured learning material. The system integrates secure authentication, document processing, AI summarization, intelligent quiz generation, PostgreSQL storage, and interactive dashboards. The architecture follows a modular pipeline pattern where each stage — upload, parse, summarize, quiz — operates independently yet feeds into the next..."
@@ -1283,7 +1337,12 @@ Respond with ONLY raw JSON (no markdown fences), in this exact structure:
   "revisionNotes": "Formatted exam-oriented notes with key definitions, facts, and important points...",
   "chapterSummaries": [
     {"heading": "Section Name", "summary": "Condensed summary of this section..."}
-  ]
+  ],
+  "advantages": "2-4 sentences on benefits and strengths...",
+  "limitations": "2-4 sentences on limitations or challenges...",
+  "futureScope": "2-4 sentences on future work and extensions...",
+  "tldr": "One concise sentence capturing the document essence...",
+  "examples": ["Example 1 with concrete details...", "Example 2 with concrete details..."]
 }
 
 Document text:
@@ -1326,6 +1385,11 @@ ${truncatedText}`
       technologyStack: parsed.technologyStack || [],
       revisionNotes: parsed.revisionNotes || "",
       chapterSummaries: parsed.chapterSummaries || [],
+      advantages: parsed.advantages || "",
+      limitations: parsed.limitations || "",
+      futureScope: parsed.futureScope || "",
+      tldr: parsed.tldr || "",
+      examples: parsed.examples || [],
     };
   } catch {
     return null;
@@ -1340,10 +1404,13 @@ async function tryGeminiQuiz(text: string, filename: string): Promise<QuizResult
   const truncatedText = text.substring(0, 30000);
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`;
     const response = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
+      },
       body: JSON.stringify({
         contents: [{
           parts: [{
