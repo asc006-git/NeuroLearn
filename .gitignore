@@ -52,3 +52,4 @@ server/venv/
 # Build artifacts
 tsconfig.tsbuildinfo
 
+private/
