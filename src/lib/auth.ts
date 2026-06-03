@@ -2,7 +2,7 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
-import { prisma, dbOperation, mockDb } from "./db";
+import { prisma } from "./db";
 import bcrypt from "bcryptjs";
 
 export const authOptions: NextAuthOptions = {
@@ -23,17 +23,9 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Missing email or password credentials.");
         }
 
-        // Database lookup with elegant offline fallback
-        const user = await dbOperation(
-          async () => {
-            return await prisma.user.findUnique({
-              where: { email: credentials.email },
-            });
-          },
-          () => {
-            return mockDb.users.find((u) => u.email === credentials.email) || null;
-          }
-        );
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email },
+        });
 
         if (!user) {
           throw new Error("No intelligence profiles detected with this email.");
@@ -53,7 +45,7 @@ export const authOptions: NextAuthOptions = {
           id: user.id,
           name: user.name,
           email: user.email,
-          image: user.image || user.avatar,
+          image: user.image,
         };
       },
     }),
@@ -67,6 +59,50 @@ export const authOptions: NextAuthOptions = {
     error: "/auth",
   },
   callbacks: {
+    async signIn({ user, account }) {
+      if (account?.provider === "google" && user.email) {
+        const existingUser = await prisma.user.findUnique({
+          where: { email: user.email },
+          include: { accounts: true },
+        });
+
+        if (existingUser) {
+          const isLinked = existingUser.accounts.some(
+            (acc) => acc.provider === "google"
+          );
+
+          if (!isLinked) {
+            await prisma.account.create({
+              data: {
+                userId: existingUser.id,
+                type: account.type,
+                provider: account.provider,
+                providerAccountId: account.providerAccountId,
+                refresh_token: account.refresh_token,
+                access_token: account.access_token,
+                expires_at: account.expires_at,
+                token_type: account.token_type,
+                scope: account.scope,
+                id_token: account.id_token,
+                session_state: account.session_state,
+              },
+            });
+            await prisma.user.update({
+              where: { id: existingUser.id },
+              data: { authProvider: "google" },
+            });
+          } else {
+            if (existingUser.authProvider !== "google") {
+              await prisma.user.update({
+                where: { id: existingUser.id },
+                data: { authProvider: "google" },
+              });
+            }
+          }
+        }
+      }
+      return true;
+    },
     async jwt({ token, user, account }) {
       if (user) {
         token.id = user.id;
