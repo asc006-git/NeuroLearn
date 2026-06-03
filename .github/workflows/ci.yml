@@ -1,0 +1,63 @@
+name: NeuroLearn AI CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Validate & Build
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: neurolearn
+          POSTGRES_PASSWORD: neurolearn_test
+          POSTGRES_DB: neurolearn_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready -U neurolearn
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+        env:
+          DATABASE_URL: "postgresql://neurolearn:neurolearn_test@localhost:5432/neurolearn_test"
+
+      - name: Run Prisma migrations
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: "postgresql://neurolearn:neurolearn_test@localhost:5432/neurolearn_test"
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Build Next.js
+        run: npm run build
+        env:
+          DATABASE_URL: "postgresql://neurolearn:neurolearn_test@localhost:5432/neurolearn_test"
+          NEXTAUTH_URL: "http://localhost:3000"
+          NEXTAUTH_SECRET: "ci-build-secret-not-used-in-build-but-required"
+          GOOGLE_CLIENT_ID: ""
+          GOOGLE_CLIENT_SECRET: ""
+          GOOGLE_API_KEY: ""
+          NEXT_PUBLIC_AI_SERVICE_URL: "http://127.0.0.1:8000"
+          FASTAPI_URL: "http://127.0.0.1:8000"

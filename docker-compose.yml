@@ -1,0 +1,68 @@
+# ═══════════════════════════════════════════════════════════════
+# NEUROLEARN AI — DOCKER COMPOSE (PRODUCTION)
+# ═══════════════════════════════════════════════════════════════
+
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: neurolearn-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: neurolearn
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: neurolearn
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U neurolearn"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: neurolearn-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "postgresql://neurolearn:${POSTGRES_PASSWORD:-changeme}@postgres:5432/neurolearn"
+      NEXTAUTH_URL: "${NEXTAUTH_URL:-http://localhost:3000}"
+      NEXTAUTH_SECRET: "${NEXTAUTH_SECRET}"
+      GOOGLE_CLIENT_ID: "${GOOGLE_CLIENT_ID:-}"
+      GOOGLE_CLIENT_SECRET: "${GOOGLE_CLIENT_SECRET:-}"
+      GOOGLE_API_KEY: "${GOOGLE_API_KEY:-}"
+      NEXT_PUBLIC_AI_SERVICE_URL: "${NEXT_PUBLIC_AI_SERVICE_URL:-http://fastapi:8000}"
+      FASTAPI_URL: "${FASTAPI_URL:-http://fastapi:8000}"
+      SMTP_HOST: "${SMTP_HOST:-}"
+      SMTP_PORT: "${SMTP_PORT:-587}"
+      SMTP_SECURE: "${SMTP_SECURE:-false}"
+      SMTP_USER: "${SMTP_USER:-}"
+      SMTP_PASS: "${SMTP_PASS:-}"
+      SMTP_FROM: "${SMTP_FROM:-noreply@neurolearn.ai}"
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  fastapi:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: neurolearn-fastapi
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - TESSERACT_CMD=/usr/bin/tesseract
+    depends_on:
+      - app
+
+volumes:
+  postgres-data:
