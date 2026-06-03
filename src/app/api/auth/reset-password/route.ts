@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
+import { validatePassword } from "@/lib/password-validation";
+
+function hashToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
 
 export async function POST(request: Request) {
   try {
@@ -13,17 +19,19 @@ export async function POST(request: Request) {
       );
     }
 
-    if (password.length < 6) {
+    const passwordError = validatePassword(password);
+    if (passwordError) {
       return NextResponse.json(
-        { error: "Security key must be at least 6 characters long." },
+        { error: passwordError },
         { status: 400 }
       );
     }
 
     // Find the user with this valid, non-expired token
+    const hashed = hashToken(token);
     const user = await prisma.user.findFirst({
       where: {
-        resetToken: token,
+        resetToken: hashed,
         resetTokenExpires: {
           gt: new Date(),
         },

@@ -1,10 +1,24 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { sendPasswordResetEmail } from "@/lib/mail";
+import { rateLimit } from "@/lib/rate-limit";
 import crypto from "crypto";
 
-export async function POST(request: Request) {
+function hashToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+export async function POST(request: NextRequest) {
   try {
+    const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
+    const { allowed, retryAfter } = rateLimit(`forgot-password:${ip}`, 3, 60000);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: `Too many requests. Try again in ${retryAfter} seconds.` },
+        { status: 429 }
+      );
+    }
+
     const { email } = await request.json();
 
     if (!email) {
@@ -26,12 +40,13 @@ export async function POST(request: Request) {
     }
 
     const token = crypto.randomBytes(32).toString("hex");
+    const hashed = hashToken(token);
     const expiry = new Date(Date.now() + 3600000);
 
     await prisma.user.update({
       where: { email },
       data: {
-        resetToken: token,
+        resetToken: hashed,
         resetTokenExpires: expiry,
       },
     });

@@ -1,30 +1,39 @@
-import { NextResponse } from "next/server";
-import { prisma, dbOperation, mockDb } from "@/lib/db";
+import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { rateLimit } from "@/lib/rate-limit";
+import { passwordSchema } from "@/lib/password-validation";
 
 const signupSchema = z.object({
-  name: z.string().min(1, "Name identifier cannot be empty."),
-  email: z.string().email("Please provide a valid neural email address."),
-  password: z.string().min(6, "Security key must be at least 6 characters long."),
+  name: z.string().min(1, "Name identifier cannot be empty.").max(100).transform((s) => s.trim()),
+  email: z.string().email("Please provide a valid neural email address.").toLowerCase().trim(),
+  password: z
+    .string()
+    .min(passwordSchema.min, "Security key must be at least 8 characters long.")
+    .max(passwordSchema.max, "Security key must not exceed 128 characters.")
+    .regex(passwordSchema.pattern, "Password must contain at least one uppercase letter.")
+    .regex(passwordSchema.patternLower, "Password must contain at least one lowercase letter.")
+    .regex(passwordSchema.patternNumber, "Password must contain at least one number."),
 });
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    const ip = request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || "unknown";
+    const { allowed, retryAfter } = rateLimit(`signup:${ip}`, 5, 60000);
+    if (!allowed) {
+      return NextResponse.json(
+        { error: `Too many signup attempts. Try again in ${retryAfter} seconds.` },
+        { status: 429 }
+      );
+    }
+
     const json = await request.json();
     const body = signupSchema.parse(json);
 
-    // Database check with elegant offline fallback
-    const userExists = await dbOperation(
-      async () => {
-        return await prisma.user.findUnique({
-          where: { email: body.email },
-        });
-      },
-      () => {
-        return mockDb.users.find((u) => u.email === body.email) || null;
-      }
-    );
+    const userExists = await prisma.user.findUnique({
+      where: { email: body.email },
+    });
 
     if (userExists) {
       return NextResponse.json(
@@ -36,59 +45,27 @@ export async function POST(request: Request) {
     // Securely hash user credentials
     const salt = await bcrypt.genSalt(12);
     const hashedPassword = await bcrypt.hash(body.password, salt);
-    const avatar = `https://api.dicebear.com/7.x/notionists/svg?seed=${body.name}&backgroundColor=transparent`;
+    const image = `https://api.dicebear.com/7.x/notionists/svg?seed=${body.name}&backgroundColor=transparent`;
 
-    const newUser = await dbOperation(
-      async () => {
-        return await prisma.user.create({
-          data: {
-            name: body.name,
-            email: body.email,
-            hashedPassword,
-            avatar,
-            preferences: {
-              create: {
-                intensity: 2,
-                adaptive: true,
-                voice: false,
-                dark: true,
-                emailAlerts: true,
-                pushAlerts: true,
-                accentColor: "#00F5D4",
-              }
-            }
-          },
-        });
+    const newUser = await prisma.user.create({
+      data: {
+        name: body.name,
+        email: body.email,
+        hashedPassword,
+        image,
+        preferences: {
+          create: {
+            intensity: 2,
+            adaptive: true,
+            voice: false,
+            dark: true,
+            emailAlerts: true,
+            pushAlerts: true,
+            accentColor: "#00F5D4",
+          }
+        }
       },
-      () => {
-        const user = {
-          id: Math.random().toString(36).substr(2, 9),
-          name: body.name,
-          email: body.email,
-          hashedPassword,
-          avatar,
-          authProvider: "credentials",
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-        mockDb.users.push(user);
-        
-        // Also add standard preferences mock state
-        mockDb.preferences.push({
-          id: `pref-${user.id}`,
-          userId: user.id,
-          intensity: 2,
-          adaptive: true,
-          voice: false,
-          dark: true,
-          emailAlerts: true,
-          pushAlerts: true,
-          accentColor: "#00F5D4",
-        });
-
-        return user;
-      }
-    );
+    });
 
     return NextResponse.json(
       {
@@ -97,7 +74,7 @@ export async function POST(request: Request) {
           id: newUser.id,
           name: newUser.name,
           email: newUser.email,
-          image: newUser.avatar,
+          image: newUser.image,
         },
       },
       { status: 201 }
