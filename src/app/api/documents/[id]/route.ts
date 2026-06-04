@@ -64,7 +64,7 @@ async function reprocessInBackground(documentId: string, userId: string, filePat
       fileBuffer = await fs.readFile(publicPath);
     }
 
-    const pdfParse = require("pdf-parse");
+    const pdfParse = require("pdf-parse/lib/pdf-parse.js");
     const result = await pdfParse(fileBuffer);
     const rawText = result.text;
 
