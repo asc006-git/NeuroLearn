@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
 
           let rawText = "";
           try {
-            const pdfParse = (await import("pdf-parse")).default;
+            const pdfParse = require("pdf-parse");
             const result = await pdfParse(fileBuffer);
             rawText = result.text;
           } catch (pdfError: any) {

@@ -64,7 +64,7 @@ async function reprocessInBackground(documentId: string, userId: string, filePat
       fileBuffer = await fs.readFile(publicPath);
     }
 
-    const pdfParse = (await import("pdf-parse")).default;
+    const pdfParse = require("pdf-parse");
     const result = await pdfParse(fileBuffer);
     const rawText = result.text;
 
@@ -154,7 +154,7 @@ async function reprocessInBackground(documentId: string, userId: string, filePat
         if (concept.name && noteText.trim()) {
           await prisma.note.create({
             data: { userId, summaryId: summary.id, title: concept.name, content: noteText.trim(), type: "concept", source: "AI-generated", tags: "concept, ai-generated" },
-          }).catch(() => {});
+          }).catch(() => { });
         }
       }
 
@@ -166,7 +166,7 @@ async function reprocessInBackground(documentId: string, userId: string, filePat
         if (term && defText) {
           await prisma.note.create({
             data: { userId, summaryId: summary.id, title: term, content: defText, type: "definition", source: "AI-generated", tags: "definition, ai-generated" },
-          }).catch(() => {});
+          }).catch(() => { });
         }
       }
 
@@ -179,7 +179,7 @@ async function reprocessInBackground(documentId: string, userId: string, filePat
           const noteType = isAIComponent ? "ai_component" : "technology";
           await prisma.note.create({
             data: { userId, summaryId: summary.id, title: tech.name, content: noteText.trim(), type: noteType, source: "AI-generated", tags: `${noteType}, ai-generated` },
-          }).catch(() => {});
+          }).catch(() => { });
         }
       }
 
@@ -187,14 +187,14 @@ async function reprocessInBackground(documentId: string, userId: string, filePat
       if (summaryResult.architecture && summaryResult.architecture.trim()) {
         await prisma.note.create({
           data: { userId, summaryId: summary.id, title: `${cleanTitle} - Architecture`, content: summaryResult.architecture.trim(), type: "architecture", source: "AI-generated", tags: "architecture, ai-generated" },
-        }).catch(() => {});
+        }).catch(() => { });
       }
 
       // Create Revision notes
       if (summaryResult.revisionNotes && summaryResult.revisionNotes.trim()) {
         await prisma.note.create({
           data: { userId, summaryId: summary.id, title: `${summaryResult.title || "Document"} - Revision Notes`, content: summaryResult.revisionNotes.trim(), type: "revision", source: "AI-generated", tags: "revision, ai-generated" },
-        }).catch(() => {});
+        }).catch(() => { });
       }
     } catch (e) {
       console.error("Reprocess note population error (non-fatal):", e);
@@ -243,10 +243,10 @@ async function reprocessInBackground(documentId: string, userId: string, filePat
     await prisma.document.update({
       where: { id: documentId },
       data: { processingStatus: "Failed" },
-    }).catch(() => {});
+    }).catch(() => { });
     await prisma.documentStatusLog.create({
       data: { documentId, status: "Failed", message: `Reprocessing failed: ${bgError.message}` },
-    }).catch(() => {});
+    }).catch(() => { });
   }
 }
 
@@ -316,7 +316,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     const existing = await prisma.document.findUnique({ where: { id } });
     if (!existing) {
-      return NextResponse.json({ error: "Document not found" }, { status: 404 }); }
+      return NextResponse.json({ error: "Document not found" }, { status: 404 });
+    }
     if (existing.userId !== user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
