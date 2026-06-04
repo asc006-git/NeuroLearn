@@ -64,12 +64,8 @@ async function reprocessInBackground(documentId: string, userId: string, filePat
       fileBuffer = await fs.readFile(publicPath);
     }
 
-    const { PDFParse } = await import("pdf-parse");
-    const workerPath = path.resolve(process.cwd(), "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs");
-    const { pathToFileURL } = await import("url");
-    PDFParse.setWorker(pathToFileURL(workerPath).href);
-    const parser = new PDFParse({ data: new Uint8Array(fileBuffer) });
-    const result = await parser.getText();
+    const pdfParse = (await import("pdf-parse")).default;
+    const result = await pdfParse(fileBuffer);
     const rawText = result.text;
 
     if (rawText.trim().length < 20) {

@@ -4,7 +4,6 @@ import { prisma } from "@/lib/db";
 import { cleanText, generateSummary, generateQuiz } from "@/lib/ai-engine";
 import { rateLimit } from "@/lib/rate-limit";
 import path from "path";
-import { pathToFileURL } from "url";
 import fs from "fs/promises";
 import { generateRedesignedKnowledgeMap } from "@/lib/knowledge-map-generator";
 
@@ -121,14 +120,10 @@ export async function POST(req: NextRequest) {
           send("extracting", "Extracting text content from PDF via neural parser...");
           await updateDocStatus("Extracting", "PDF text extraction in progress.");
 
-          // Extract text using pdf-parse with server-side compatible worker path
           let rawText = "";
           try {
-            const { PDFParse } = await import("pdf-parse");
-            const workerPath = path.resolve(process.cwd(), "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs");
-            PDFParse.setWorker(pathToFileURL(workerPath).href);
-            const parser = new PDFParse({ data: new Uint8Array(fileBuffer) });
-            const result = await parser.getText();
+            const pdfParse = (await import("pdf-parse")).default;
+            const result = await pdfParse(fileBuffer);
             rawText = result.text;
           } catch (pdfError: any) {
             send("error", `Failed to parse PDF: ${pdfError.message}`);
