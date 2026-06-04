@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/api-auth";
-import { promises as fs } from "fs";
-import path from "path";
 
 export async function GET(req: NextRequest) {
   try {
@@ -89,22 +87,7 @@ export async function DELETE(req: NextRequest) {
       where: { userId: user.id, category: cleanTitle }
     });
 
-    // 3. Delete physical file from disk
-    const filename = path.basename(document.fileUrl);
-    const privatePath = path.join(process.cwd(), "private", "uploads", filename);
-    const publicPath = path.join(process.cwd(), "public", "uploads", filename);
-
-    try {
-      await fs.unlink(privatePath);
-    } catch {
-      try {
-        await fs.unlink(publicPath);
-      } catch (err) {
-        console.warn(`[Delete API] Physical file delete failed for ${filename}:`, err);
-      }
-    }
-
-    // 4. Finally delete the Document (cascades to summaries, quizzes, statusLogs, extraction)
+    // 3. Finally delete the Document (cascades to summaries, quizzes, statusLogs, extraction, fileData)
     await prisma.document.delete({ where: { id } });
 
     return NextResponse.json({

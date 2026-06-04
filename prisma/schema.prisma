@@ -71,6 +71,7 @@ model Document {
   userId           String
   title            String
   fileUrl          String
+  fileData         Bytes?              // Raw PDF binary for Vercel serverless reprocessing
   extractedText    String              @db.Text
   processingStatus String              @default("Uploading") // Uploading, Extracting, Processing, Generating Summary, Generating Quiz, Completed, Failed
   uploadedAt       DateTime            @default(now())

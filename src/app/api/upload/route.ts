@@ -3,8 +3,6 @@ import { requireAuth } from "@/lib/api-auth";
 import { prisma } from "@/lib/db";
 import { cleanText, generateSummary, generateQuiz } from "@/lib/ai-engine";
 import { rateLimit } from "@/lib/rate-limit";
-import path from "path";
-import fs from "fs/promises";
 import { generateRedesignedKnowledgeMap } from "@/lib/knowledge-map-generator";
 
 // ═══════════════════════════════════════════════════════════════
@@ -91,22 +89,17 @@ export async function POST(req: NextRequest) {
           // ── Stage 1: Uploading ────────────────────────────
           send("reading", `Initializing ingestion pipeline for ${file.name}...`);
 
-          // Save physical file (secured: outside public dir to prevent direct access)
-          const uploadsDir = "/tmp/uploads";
-          await fs.mkdir(uploadsDir, { recursive: true });
-
           // Generate unique filename to avoid collisions
           const timestamp = Date.now();
           const safeFilename = `${timestamp}_${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
-          const filePath = path.join(uploadsDir, safeFilename);
-          await fs.writeFile(filePath, fileBuffer);
 
-          // Create document record
+          // Create document record (fileData stores raw PDF binary for Vercel reprocessing)
           const doc = await prisma.document.create({
             data: {
               userId: user.id,
               title: file.name,
               fileUrl: `/api/uploads/${safeFilename}`,
+              fileData: fileBuffer,
               extractedText: "", // Will be populated after extraction
               processingStatus: "Uploading",
             },

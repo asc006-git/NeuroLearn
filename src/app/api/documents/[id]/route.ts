@@ -3,8 +3,6 @@ import { prisma } from "@/lib/db";
 import { requireAuth } from "@/lib/api-auth";
 import { cleanText, generateSummary, generateQuiz } from "@/lib/ai-engine";
 import { z } from "zod";
-import { promises as fs } from "fs";
-import path from "path";
 import { generateRedesignedKnowledgeMap } from "@/lib/knowledge-map-generator";
 
 const renameSchema = z.object({
@@ -37,16 +35,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    return NextResponse.json({ document });
+    const { fileData: _, ...docWithoutFileData } = document;
+    return NextResponse.json({ document: docWithoutFileData });
   } catch (error) {
     console.error("[Document API] Error fetching document:", error);
     return NextResponse.json({ error: "Failed to fetch document" }, { status: 500 });
   }
 }
 
-async function reprocessInBackground(documentId: string, userId: string, filePath: string, originalTitle: string) {
+async function reprocessInBackground(documentId: string, userId: string, originalTitle: string) {
   try {
-    // Stage 1: Restart extraction by reading PDF buffer from disk
+    // Stage 1: Restart extraction by reading PDF buffer from database
     await prisma.document.update({
       where: { id: documentId },
       data: { processingStatus: "Extracting" },
@@ -55,14 +54,14 @@ async function reprocessInBackground(documentId: string, userId: string, filePat
       data: { documentId, status: "Extracting", message: "PDF extraction restarted." },
     });
 
-    let fileBuffer: Buffer;
-    try {
-      fileBuffer = await fs.readFile(filePath);
-    } catch {
-      const safeFilename = path.basename(filePath);
-      const publicPath = path.join(process.cwd(), "public", "uploads", safeFilename);
-      fileBuffer = await fs.readFile(publicPath);
+    const doc = await prisma.document.findUnique({
+      where: { id: documentId },
+      select: { fileData: true },
+    });
+    if (!doc?.fileData) {
+      throw new Error("PDF binary data not found in database. Re-upload the document.");
     }
+    const fileBuffer = Buffer.from(doc.fileData);
 
     const pdfParse = require("pdf-parse/lib/pdf-parse.js");
     const result = await pdfParse(fileBuffer);
@@ -267,9 +266,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const safeFilename = path.basename(existing.fileUrl);
-    const filePath = path.join(process.cwd(), "private", "uploads", safeFilename);
-
     // 1. Delete prior outputs (summaries, quizzes, notes)
     for (const summary of existing.summaries) {
       await prisma.quiz.deleteMany({ where: { summaryId: summary.id } });
@@ -297,7 +293,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       data: { documentId: id, status: "Reprocessing", message: "Document re-ingestion sequence initialized." },
     });
 
-    reprocessInBackground(id, user.id, filePath, existing.title).catch((bgError) => {
+    reprocessInBackground(id, user.id, existing.title).catch((bgError) => {
       console.error(`[Reprocess Launch Exception] Document ID: ${id}`, bgError);
     });
 
@@ -327,6 +323,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const updated = await prisma.document.update({
       where: { id },
       data: { title: parsed.title },
+      select: { id: true, title: true, fileUrl: true, processingStatus: true, uploadedAt: true, userId: true },
     });
 
     return NextResponse.json({ document: updated });
