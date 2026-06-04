@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
           send("reading", `Initializing ingestion pipeline for ${file.name}...`);
 
           // Save physical file (secured: outside public dir to prevent direct access)
-          const uploadsDir = path.join(process.cwd(), "private", "uploads");
+          const uploadsDir = "/tmp/uploads";
           await fs.mkdir(uploadsDir, { recursive: true });
 
           // Generate unique filename to avoid collisions
@@ -235,7 +235,7 @@ export async function POST(req: NextRequest) {
                 if (concept.name && noteText.trim()) {
                   await prisma.note.create({
                     data: { userId: user.id, summaryId: summary.id, title: concept.name, content: noteText.trim(), type: "concept", source: "AI-generated", tags: "concept, ai-generated" },
-                  }).catch(() => {});
+                  }).catch(() => { });
                 }
               }
             }
@@ -249,7 +249,7 @@ export async function POST(req: NextRequest) {
                 if (term && defText) {
                   await prisma.note.create({
                     data: { userId: user.id, summaryId: summary.id, title: term, content: defText, type: "definition", source: "AI-generated", tags: "definition, ai-generated" },
-                  }).catch(() => {});
+                  }).catch(() => { });
                 }
               }
             }
@@ -264,7 +264,7 @@ export async function POST(req: NextRequest) {
                   const noteType = isAIComponent ? "ai_component" : "technology";
                   await prisma.note.create({
                     data: { userId: user.id, summaryId: summary.id, title: tech.name, content: noteText.trim(), type: noteType, source: "AI-generated", tags: `${noteType}, ai-generated` },
-                  }).catch(() => {});
+                  }).catch(() => { });
                 }
               }
             }
@@ -273,7 +273,7 @@ export async function POST(req: NextRequest) {
             if (summaryResult.architecture && summaryResult.architecture.trim()) {
               await prisma.note.create({
                 data: { userId: user.id, summaryId: summary.id, title: `${cleanTitle} - Architecture`, content: summaryResult.architecture.trim(), type: "architecture", source: "AI-generated", tags: "architecture, ai-generated" },
-              }).catch(() => {});
+              }).catch(() => { });
             }
 
             // Create Revision notes
@@ -281,7 +281,7 @@ export async function POST(req: NextRequest) {
               const title = `${summaryResult.title || "Document"} - Revision Notes`;
               await prisma.note.create({
                 data: { userId: user.id, summaryId: summary.id, title, content: summaryResult.revisionNotes.trim(), type: "revision", source: "AI-generated", tags: "revision, ai-generated" },
-              }).catch(() => {});
+              }).catch(() => { });
             }
           } catch (e) {
             console.error("[AI Engine] Note population error (non-fatal):", e);
@@ -364,7 +364,7 @@ export async function POST(req: NextRequest) {
           console.error("[Upload Pipeline Error]", err);
           send("error", err.message || "An unhandled ingestion failure occurred.");
           if (documentId) {
-            await updateDocStatus("Failed", err.message || "Pipeline failure").catch(() => {});
+            await updateDocStatus("Failed", err.message || "Pipeline failure").catch(() => { });
           }
         } finally {
           controller.close();
